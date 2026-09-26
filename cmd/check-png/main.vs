@@ -4,9 +4,11 @@
 // Run from this directory: vsc run check-png -- testdata
 package main
 
-import "image"
-import "image/png"
-import "fs"
+import (
+    "fs"
+    "image"
+    "image/png"
+)
 
 var failures = 0
 

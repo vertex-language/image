@@ -4,8 +4,10 @@
 // zlib compression on the way out. Pure Vertex, no I/O.
 package png
 
-import "image"
-import "crypto/crc32"
+import (
+    "crypto/crc32"
+    "image"
+)
 
 /// PngError is why bytes could not be decoded.
 public enum PngError: Error {

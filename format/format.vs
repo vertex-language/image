@@ -4,8 +4,10 @@
 // the platform's decoders until pure ones exist.
 package format
 
-import "image"
-import "image/png"
+import (
+    "image"
+    "image/png"
+)
 
 /// Kind is an image file format, as recognised from its first bytes.
 public enum Kind {

@@ -19,10 +19,10 @@ Image formats and pixel buffers: pixel models, color representations, and format
 
 ## Quick Start
 
-Run any entry point with:
+Run the PNG conformance test suite in `cmd/` directly:
 
 ```bash
-vsc run main.vs
+vsc run check-png -- cmd/check-png/testdata
 ```
 
 ### Encoding and Decoding PNG
@@ -30,9 +30,11 @@ vsc run main.vs
 ```swift
 package main
 
-import "image"
-import "image/png"
-import "fs"
+import (
+    "fs"
+    "image"
+    "image/png"
+)
 
 func main() -> int32 {
     var img = image.RGBA(width: 64, height: 64)
