@@ -13,7 +13,7 @@ Image formats and pixel buffers: pixel models, color representations, and format
 | :--- | :--- | :--- |
 | **`image`** | `RGBA`: premultiplied 8-bit pixels, top row first. | none |
 | **`image/png`** | PNG decode (every color type and bit depth, palettes, `tRNS`, Adam7) and encode (RGB or RGBA, per-row filters, zlib). | none |
-| **`image/format`** | `Decode` by sniffing the bytes: PNG, and platform image format decoding; `data:` URLs. | `cimage` (ImageIO) |
+| **`image/format`** | `Decode` by sniffing the bytes: PNG, and platform image format decoding; `data:` URLs. | its C++ module `image.format`: ImageIO on macOS (`format/decode_darwin.mm`) |
 
 ---
 
@@ -52,7 +52,7 @@ func main() -> int32 {
 Run the PNG conformance test suite:
 
 ```bash
-vsc run check-png -- tests/png/testdata
+vsc run check-png -- cmd/check-png/testdata
 ```
 
 ---

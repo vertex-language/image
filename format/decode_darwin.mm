@@ -1,11 +1,12 @@
-// cimage for macOS: ImageIO and CoreGraphics.
+// platformDecode on macOS: ImageIO and CoreGraphics. See decode.cpp.
+module;
 #import <Foundation/Foundation.h>
 #import <ImageIO/ImageIO.h>
 #import <CoreGraphics/CoreGraphics.h>
-#include "cimage.h"
+module image.format;
 
-int32_t cimage_decode(const uint8_t* data, int32_t len, int32_t* width, int32_t* height,
-                      uint8_t* pixels, int32_t cap) {
+int32_t platformDecode(const uint8_t* data, int32_t len, int32_t* width, int32_t* height,
+                       uint8_t* pixels, int32_t cap) noexcept {
     if (width) *width = 0;
     if (height) *height = 0;
     if (data == NULL || len <= 0)

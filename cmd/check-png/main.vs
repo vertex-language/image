@@ -1,7 +1,7 @@
 // check-png decodes the fixtures gen.py writes (every color type, bit
 // depth and interlace) and compares them to the expected pixels, then
 // round-trips images through Encode and Decode.
-// Run from this directory: check-png testdata
+// Run from this directory: vsc run check-png -- testdata
 package main
 
 import "image"

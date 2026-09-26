@@ -4,7 +4,6 @@
 // the platform's decoders until pure ones exist.
 package format
 
-import cimage
 import "image"
 import "image/png"
 
@@ -47,13 +46,13 @@ func decodePlatform(_ bytes: [uint8]) -> image.RGBA? {
     var width: int32 = 0
     var height: int32 = 0
     let need = bytes.withUnsafeBytes { bp in
-        cimage_decode(UnsafePointer<uint8>(bp.baseAddress!), int32(bytes.count), &width, &height, nil, 0)
+        platformDecode(UnsafePointer<uint8>(bp.baseAddress!), int32(bytes.count), &width, &height, nil, 0)
     }
     if need <= 0 || width <= 0 || height <= 0 { return nil }
     var pixels = [uint8](repeating: 0, count: int(need))
     let got = bytes.withUnsafeBytes { bp in
         pixels.withUnsafeMutableBufferPointer { pp in
-            cimage_decode(UnsafePointer<uint8>(bp.baseAddress!), int32(bytes.count), &width, &height, pp.baseAddress!, int32(pp.count))
+            platformDecode(UnsafePointer<uint8>(bp.baseAddress!), int32(bytes.count), &width, &height, pp.baseAddress!, int32(pp.count))
         }
     }
     if got != need { return nil }
