@@ -198,6 +198,39 @@ func main() -> int32 {
     fill(tri, .nonZero)
     check(alpha(19, 19) >= 0, "a path past the canvas is clipped to it")
 
+    print("Radial gradients and layers")
+    var rp = [uint8](repeating: 0, count: 40 * 40 * 4)
+    var rg = draw.LinearGradient(angle: 0, stops: [draw.GradientStop(draw.Color(255, 0, 0), at: 0), draw.GradientStop(draw.Color(0, 0, 255), at: 1)])
+    var circleShape = draw.RadialShape()
+    circleShape.Circle = true
+    circleShape.Extent = .closestSide
+    rg.Radial = circleShape
+    draw.WithCanvas(&rp, width: 40, height: 40) { c in
+        c.FillGradient(draw.IRect(0, 0, 40, 40), radii: draw.Radii.zero, rg)
+    }
+    let rc = pixel(rp, 40, 20, 20)
+    let side = pixel(rp, 40, 20, 0)
+    let rk = pixel(rp, 40, 0, 0)
+    check(rc.r > 240 && rc.b < 15, "a radial gradient starts at its centre (got \(rc.r) \(rc.b))")
+    check(side.b > 240 && rk.b == 255 && rk.r == 0, "and reaches its last stop at the closest side, holding it past (got \(side.b) \(rk.b))")
+
+    var lp = [uint8](repeating: 0, count: 60 * 20 * 4)
+    draw.WithCanvas(&lp, width: 60, height: 20) { c in
+        c.Clear(draw.Color.white)
+        let layer = draw.Layer(draw.IRect(10, 0, 40, 20))
+        layer.Canvas.Fill(draw.IRect(20, 0, 20, 20), draw.Color(0, 0, 0))
+        layer.Canvas.Fill(draw.IRect(0, 0, 60, 20), draw.Color(0, 0, 0, 0))
+        layer.Blur(3)
+        layer.Composite(onto: c)
+        layer.Free()
+    }
+    let inside = pixel(lp, 60, 30, 10)
+    let edge = pixel(lp, 60, 20, 10)
+    let outside = pixel(lp, 60, 5, 10)
+    check(inside.r < 40, "a blurred layer keeps its middle (got \(inside.r))")
+    check(edge.r > 60 && edge.r < 200, "softens its edges (got \(edge.r))")
+    check(outside.r == 255, "and draws nothing outside itself")
+
     if failures == 0 {
         print("ALL DRAW CHECKS PASSED")
         return 0
