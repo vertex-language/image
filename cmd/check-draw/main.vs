@@ -143,6 +143,61 @@ func main() -> int32 {
     let i6 = pixel(pixels, w, 0, 9)
     check(i5.r == 255 && i5.b == 0 && i6.r == 0 && i6.b == 255, "image scaled down averages each half")
 
+    print("Translucent masks")
+    var tm = [uint8](repeating: 0, count: 4)
+    draw.WithCanvas(&tm, width: 1, height: 1) { c in
+        c.DrawMask(draw.Mask(width: 1, height: 1, data: [255]), x: 0, y: 0, draw.Color(255, 0, 0, 128))
+    }
+    check(tm[3] == 128 && tm[0] == 128, "a half-transparent color through a full mask lands at half alpha, once (got \(tm[0]) \(tm[3]))")
+    tm = [0, 0, 255, 255]
+    draw.WithCanvas(&tm, width: 1, height: 1) { c in
+        c.DrawMask(draw.Mask(width: 1, height: 1, data: [255]), x: 0, y: 0, draw.Color(255, 0, 0, 128))
+    }
+    check(tm[0] == 128 && tm[2] == 127 && tm[3] == 255, "over blue, red and blue share it (got \(tm[0]) \(tm[2]) \(tm[3]))")
+
+    print("Paths")
+    let pw: int32 = 20
+    var pp = [uint8](repeating: 0, count: int(pw * pw * 4))
+    func fill(_ path: draw.Path, _ rule: draw.FillRule) {
+        pp = [uint8](repeating: 0, count: int(pw * pw * 4))
+        draw.WithCanvas(&pp, width: pw, height: pw) { c in c.FillPath(path, rule: rule, draw.Color(0, 0, 0)) }
+    }
+    func alpha(_ x: int32, _ y: int32) -> uint8 { return pixel(pp, pw, x, y).a }
+    var square = draw.Path()
+    square.MoveTo(2, 2); square.LineTo(12, 2); square.LineTo(12, 12); square.LineTo(2, 12); square.Close()
+    fill(square, .nonZero)
+    check(alpha(5, 5) == 255 && alpha(2, 2) == 255 && alpha(11, 11) == 255, "a square fills its pixels")
+    check(alpha(1, 5) == 0 && alpha(12, 5) == 0 && alpha(5, 12) == 0, "and nothing outside")
+    var half = draw.Path()
+    half.MoveTo(2.5, 2); half.LineTo(6, 2); half.LineTo(6, 6); half.LineTo(2.5, 6); half.Close()
+    fill(half, .nonZero)
+    check(alpha(2, 3) > 120 && alpha(2, 3) < 136, "an edge halfway across a pixel covers half of it (\(alpha(2, 3)))")
+    // A square with a square hole, both wound the same way.
+    var ring = square
+    ring.MoveTo(5, 5); ring.LineTo(9, 5); ring.LineTo(9, 9); ring.LineTo(5, 9); ring.Close()
+    fill(ring, .evenOdd)
+    check(alpha(6, 6) == 0 && alpha(3, 3) == 255, "even-odd makes a hole of an overlap wound the same way")
+    fill(ring, .nonZero)
+    check(alpha(6, 6) == 255, "nonzero fills it")
+    var reversed = square
+    reversed.MoveTo(5, 5); reversed.LineTo(5, 9); reversed.LineTo(9, 9); reversed.LineTo(9, 5); reversed.Close()
+    fill(reversed, .nonZero)
+    check(alpha(6, 6) == 0 && alpha(3, 3) == 255, "nonzero makes a hole of one wound the other way")
+    var circle = draw.Path()
+    let k: float32 = 0.5523
+    circle.MoveTo(18, 10)
+    circle.CubicTo(18, 10 + 8 * k, 10 + 8 * k, 18, 10, 18)
+    circle.CubicTo(10 - 8 * k, 18, 2, 10 + 8 * k, 2, 10)
+    circle.CubicTo(2, 10 - 8 * k, 10 - 8 * k, 2, 10, 2)
+    circle.CubicTo(10 + 8 * k, 2, 18, 10 - 8 * k, 18, 10)
+    circle.Close()
+    fill(circle, .nonZero)
+    check(alpha(10, 10) == 255 && alpha(1, 1) == 0 && alpha(3, 3) < 128, "a circle of cubics: filled middle, clear corners")
+    var tri = draw.Path()
+    tri.MoveTo(-10, -10); tri.QuadTo(40, 0, 30, 30); tri.Close()
+    fill(tri, .nonZero)
+    check(alpha(19, 19) >= 0, "a path past the canvas is clipped to it")
+
     if failures == 0 {
         print("ALL DRAW CHECKS PASSED")
         return 0

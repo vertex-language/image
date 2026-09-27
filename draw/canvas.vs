@@ -244,8 +244,11 @@ public struct Canvas {
                     if c == 255 && a == 255 {
                         dst.pointee = pixel
                     } else if c > 0 {
+                        // The color is premultiplied by its alpha already:
+                        // coverage scales it once, and what's under shows
+                        // through by the alpha that lands.
                         let ae = mul255(a, c)
-                        dst.pointee = scalePacked(pixel, ae) &+ scalePacked(dst.pointee, 255 - ae)
+                        dst.pointee = scalePacked(pixel, c) &+ scalePacked(dst.pointee, 255 - ae)
                     }
                     src = src + 1
                     dst = dst + 1
