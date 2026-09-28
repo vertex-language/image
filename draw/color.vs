@@ -1,5 +1,7 @@
 package draw
 
+import "math"
+
 /// A color: red, green, blue and alpha, each 0 to 255, not premultiplied.
 public struct Color: Equatable {
     public var R: uint8
@@ -48,5 +50,3 @@ func mul255(_ x: uint32, _ y: uint32) -> uint32 {
     return (t + (t >> 8)) >> 8
 }
 
-func clamp01(_ v: float32) -> float32 { return v < 0 ? 0 : (v > 1 ? 1 : v) }
-func absf(_ v: float32) -> float32 { return v < 0 ? -v : v }

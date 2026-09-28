@@ -1,5 +1,7 @@
 package draw
 
+import "math"
+
 /// Pixels painted apart from a canvas and then put back onto it, for
 /// effects that apply to what's drawn as a whole, like a blur. A layer
 /// covers a rectangle of the canvas it was made for, and its Canvas
@@ -41,7 +43,7 @@ public struct Layer {
         let w = int(Rect.Width)
         let h = int(Rect.Height)
         // Box sizes whose three passes have the Gaussian's variance.
-        let ideal = c_sqrtf(4 * sigma * sigma + 1)
+        let ideal = math.Sqrt(4 * sigma * sigma + 1)
         var radius = int((ideal - 1) / 2)
         if radius < 1 { radius = 1 }
         let longest = w > h ? w : h

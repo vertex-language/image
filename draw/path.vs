@@ -1,5 +1,7 @@
 package draw
 
+import "math"
+
 /// Which parts of a path a fill covers where contours overlap: nonzero
 /// winding (SVG's and canvas's default), or even-odd, which makes holes
 /// of overlaps whichever way they wind.
@@ -107,14 +109,9 @@ public struct Path {
 func distance(_ a: Point, _ b: Point) -> float32 {
     let dx = a.X - b.X
     let dy = a.Y - b.Y
-    return sqrtf32(dx * dx + dy * dy)
+    return math.Sqrt(dx * dx + dy * dy)
 }
 
-@_silgen_name("sqrtf")
-func sqrtf32(_ x: float32) -> float32
-
-@_silgen_name("floorf")
-func floorf32(_ x: float32) -> float32
 
 /// Sub-rows sampled per pixel row: anti-aliasing across the edges is
 /// exact horizontally and in quarters vertically.
@@ -125,9 +122,9 @@ extension Canvas {
     public func FillPath(_ path: Path, rule: FillRule = .nonZero, _ color: Color) {
         if path.Points.count < 3 || color.A == 0 { return }
         let bounds = path.Bounds
-        let x0 = int32(floorf32(bounds.X))
-        let y0 = int32(floorf32(bounds.Y))
-        let area = IRect(x0, y0, int32(floorf32(bounds.X + bounds.Width)) - x0 + 1, int32(floorf32(bounds.Y + bounds.Height)) - y0 + 1).Intersect(Clip)
+        let x0 = int32(math.Floor(bounds.X))
+        let y0 = int32(math.Floor(bounds.Y))
+        let area = IRect(x0, y0, int32(math.Floor(bounds.X + bounds.Width)) - x0 + 1, int32(math.Floor(bounds.Y + bounds.Height)) - y0 + 1).Intersect(Clip)
         if area.IsEmpty { return }
         let w = int(area.Width)
         let h = int(area.Height)

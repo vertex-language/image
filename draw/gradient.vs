@@ -1,5 +1,7 @@
 package draw
 
+import "math"
+
 /// One color of a gradient, at a fraction of its length.
 public struct GradientStop {
     public var Color: Color
@@ -65,10 +67,10 @@ public struct RadialShape {
     func resolve(_ x: float32, _ y: float32, _ w: float32, _ h: float32) -> (cx: float32, cy: float32, rx: float32, ry: float32) {
         let cx = x + w * CenterX + OffsetX
         let cy = y + h * CenterY + OffsetY
-        let left = absf(cx - x)
-        let right = absf(x + w - cx)
-        let top = absf(cy - y)
-        let bottom = absf(y + h - cy)
+        let left = math.Abs(cx - x)
+        let right = math.Abs(x + w - cx)
+        let top = math.Abs(cy - y)
+        let bottom = math.Abs(y + h - cy)
         var sx: float32 = 0
         var sy: float32 = 0
         switch Extent {
@@ -84,7 +86,7 @@ public struct RadialShape {
         let corner = Extent == .closestCorner || Extent == .farthestCorner
         if Circle {
             if corner {
-                let d = c_sqrtf(sx * sx + sy * sy)
+                let d = math.Sqrt(sx * sx + sy * sy)
                 return (cx: cx, cy: cy, rx: d, ry: d)
             }
             let side = Extent == .closestSide ? (sx < sy ? sx : sy) : (sx > sy ? sx : sy)
@@ -95,11 +97,6 @@ public struct RadialShape {
         return (cx: cx, cy: cy, rx: sx, ry: sy)
     }
 }
-
-@_silgen_name("sinf")
-func c_sinf(_ x: float32) -> float32
-@_silgen_name("cosf")
-func c_cosf(_ x: float32) -> float32
 
 extension Canvas {
     /// Fills a rectangle, its corners rounded, with a linear gradient.
@@ -119,11 +116,11 @@ extension Canvas {
             return
         }
         let rad = g.Angle * 3.14159265 / 180
-        let dx = c_sinf(rad)
-        let dy = -c_cosf(rad)
+        let dx = math.Sin(rad)
+        let dy = -math.Cos(rad)
         let w = float32(r.Width)
         let h = float32(r.Height)
-        let length = absf(w * dx) + absf(h * dy)
+        let length = math.Abs(w * dx) + math.Abs(h * dy)
         if length <= 0 { return }
         let cx = float32(r.X) + w / 2
         let cy = float32(r.Y) + h / 2
@@ -204,7 +201,7 @@ extension Canvas {
             let dy = (float32(y) + 0.5 - geo.cy) * iy
             while x < clipped.Right {
                 let dx = (float32(x) + 0.5 - geo.cx) * ix
-                var t = c_sqrtf(dx * dx + dy * dy)
+                var t = math.Sqrt(dx * dx + dy * dy)
                 if t > 1 { t = 1 }
                 let idx = int(t * float32(steps - 1))
                 var cov: int32 = 255

@@ -1,5 +1,7 @@
 package draw
 
+import "math"
+
 /// A rectangle in CSS pixels: what layout measures in.
 public struct Rect: Equatable {
     public var X: float32
@@ -167,10 +169,10 @@ public struct Radii: Equatable {
     /// curve of the padding edge inside a rounded border.
     public func Inset(_ e: Edges) -> Radii {
         return Radii(
-            max0(TopLeft - max2(e.Top, e.Left)),
-            max0(TopRight - max2(e.Top, e.Right)),
-            max0(BottomRight - max2(e.Bottom, e.Right)),
-            max0(BottomLeft - max2(e.Bottom, e.Left)))
+            math.Max(TopLeft - math.Max(e.Top, e.Left), 0),
+            math.Max(TopRight - math.Max(e.Top, e.Right), 0),
+            math.Max(BottomRight - math.Max(e.Bottom, e.Right), 0),
+            math.Max(BottomLeft - math.Max(e.Bottom, e.Left), 0))
     }
 
     /// Radii that fit the rectangle: where the sum of two along a side
@@ -190,15 +192,9 @@ public struct Radii: Equatable {
     }
 }
 
-func max0(_ v: float32) -> float32 { return v > 0 ? v : 0 }
-func max2(_ a: float32, _ b: float32) -> float32 { return a > b ? a : b }
-
-@_silgen_name("lrintf")
-func c_lrintf(_ x: float32) -> int
-
 /// The nearest whole number, halves rounding to even.
 public func RoundToInt(_ v: float32) -> int32 {
-    return int32(c_lrintf(v))
+    return math.RoundToInt(v)
 }
 
 /// A position in CSS pixels, from the top-left corner.

@@ -1,5 +1,7 @@
 package draw
 
+import "math"
+
 /// An 8-bit coverage mask: a glyph, or any shape to paint in one color.
 public struct Mask {
     public var Width: int32
@@ -272,7 +274,7 @@ public struct Canvas {
             shapeRect = sh
         }
         if target.IsEmpty { return }
-        let alpha = opacity >= 1 ? uint32(255) : uint32(clamp01(opacity) * 255 + 0.5)
+        let alpha = opacity >= 1 ? uint32(255) : uint32(math.Saturate(opacity) * 255 + 0.5)
         if alpha == 0 { return }
         let sameSize = dst.Width == img.Width && dst.Height == img.Height
         var shapeRadii = Radii(0, 0, 0, 0)
@@ -384,7 +386,7 @@ struct RoundedRect {
         }
         let dx = px - cx
         let dy = py - cy
-        let d = c_sqrtf(dx * dx + dy * dy)
+        let d = math.Sqrt(dx * dx + dy * dy)
         let inside = r - d + 0.5
         if inside >= 1 { return 255 }
         if inside <= 0 { return 0 }
@@ -403,9 +405,6 @@ struct RoundedRect {
         return rect.Right - int32(inset + 1)
     }
 }
-
-@_silgen_name("sqrtf")
-func c_sqrtf(_ x: float32) -> float32
 
 /// One pixel of an image resampled into a destination of another size:
 /// a box average of the source pixels the destination pixel covers when
@@ -449,8 +448,8 @@ func sample(_ src: UnsafePointer<uint32>, _ sw: int32, _ sh: int32,
     }
     let sx = (float32(dx) + 0.5) * fx - 0.5
     let sy = (float32(dy) + 0.5) * fy - 0.5
-    var x0 = int32(c_floorf(sx))
-    var y0 = int32(c_floorf(sy))
+    var x0 = int32(math.Floor(sx))
+    var y0 = int32(math.Floor(sy))
     let tx = sx - float32(x0)
     let ty = sy - float32(y0)
     if x0 < 0 { x0 = 0 }
@@ -481,5 +480,3 @@ func sample(_ src: UnsafePointer<uint32>, _ sw: int32, _ sh: int32,
     return out
 }
 
-@_silgen_name("floorf")
-func c_floorf(_ x: float32) -> float32
