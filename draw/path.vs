@@ -17,6 +17,9 @@ public struct Path {
     public var Points: [Point] = []
     /// Where each contour starts in Points.
     public var Starts: [int] = []
+    /// Whether each contour was closed (Close): a stroke goes round it,
+    /// rather than ending at its ends.
+    public var Closed: [bool] = []
     var current = Point(0, 0)
     var start = Point(0, 0)
 
@@ -28,6 +31,7 @@ public struct Path {
 
     public mutating func MoveTo(_ x: float32, _ y: float32) {
         Starts.append(Points.count)
+        Closed.append(false)
         Points.append(Point(x, y))
         current = Point(x, y)
         start = current
@@ -72,7 +76,10 @@ public struct Path {
 
     /// Ends the contour, back at its start.
     public mutating func Close() {
-        if !Starts.isEmpty { current = start }
+        if !Starts.isEmpty {
+            current = start
+            Closed[Closed.count - 1] = true
+        }
     }
 
     /// How many straight pieces a curve needs to stay within a quarter
