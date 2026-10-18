@@ -13,6 +13,7 @@ Image formats and pixel buffers: pixel models, color representations, and format
 | :--- | :--- | :--- |
 | **`image`** | `RGBA`: premultiplied 8-bit pixels, top row first. | none |
 | **`image/png`** | PNG decode (every color type and bit depth, palettes, `tRNS`, Adam7) and encode (RGB or RGBA, per-row filters, zlib). | none |
+| **`image/hdr`** | Radiance RGBE (`.hdr`) decode: flat and run-length scanlines into linear float32 RGB. Sky and studio light probes. | none |
 | **`image/draw`** | A software rasterizer over premultiplied RGBA pixels: fills, anti-aliased rounded corners, borders, gradients, 8-bit masks, images resampled up or down; `Color`, `Point`, `Size`, `Rect`. | none |
 | **`image/format`** | `Decode` by sniffing the bytes: PNG, and platform image format decoding; `data:` URLs. | its C++ module `image.format`: ImageIO on macOS (`format/decode_darwin.mm`) |
 
@@ -57,6 +58,7 @@ Run the PNG conformance test suite and the rasterizer's checks:
 ```bash
 vsc run check-png -- cmd/check-png/testdata
 vsc run check-draw
+vsc run check-hdr [-- sky.hdr]   # RGBE built byte by byte; given a file, decodes it and times it
 ```
 
 ---
