@@ -5,7 +5,12 @@ import "math"
 /// One color of a gradient, at a fraction of its length.
 public struct GradientStop {
     public var Color: Color
+    /// A fraction of the gradient line, -1 for none given (spread between
+    /// its neighbours).
     public var Position: float32
+    /// Pixels added to Position along the line: a stop at `20px`, or
+    /// `calc(100% - 20px)`. Resolved once the line's length is known.
+    public var Length: float32 = 0
 
     public init(_ color: Color, at position: float32) {
         self.Color = color
@@ -27,10 +32,80 @@ public struct LinearGradient {
     /// Whether the stops repeat past the last and before the first, as
     /// repeating-linear-gradient() and the rest do.
     public var Repeating: bool = false
+    /// Some stop has a Length: its positions are fixed up (FixStops) only
+    /// when the gradient is drawn and its line's length is known.
+    public var Unresolved: bool = false
 
     public init(angle: float32, stops: [GradientStop]) {
         Angle = angle
         Stops = stops
+    }
+
+    /// The gradient for a canvas k device pixels to a CSS pixel: its
+    /// shapes' and its stops' lengths scaled.
+    public func Scaled(_ k: float32) -> LinearGradient {
+        var g = self
+        if let r = g.Radial { g.Radial = r.Scaled(k) }
+        if let c = g.Conic { g.Conic = c.Scaled(k) }
+        if g.Unresolved {
+            var i = 0
+            while i < g.Stops.count {
+                g.Stops[i].Length *= k
+                i += 1
+            }
+        }
+        return g
+    }
+
+    /// The stops placed on a gradient line `length` pixels long: each
+    /// stop's Length taken into its Position, then fixed up as CSS does.
+    public func ResolvedFor(_ length: float32) -> LinearGradient {
+        if !Unresolved { return self }
+        var g = self
+        g.Unresolved = false
+        let line = length > 0.0001 ? length : 0.0001
+        var i = 0
+        while i < g.Stops.count {
+            if g.Stops[i].Length != 0 {
+                g.Stops[i].Position = (g.Stops[i].Position < 0 ? 0 : g.Stops[i].Position) + g.Stops[i].Length / line
+                g.Stops[i].Length = 0
+            }
+            i += 1
+        }
+        FixStops(&g.Stops)
+        return g
+    }
+}
+
+/// CSS's fix-ups of stop positions: the first defaults to 0 and the last
+/// to 1, the ones between without a position spread evenly between their
+/// neighbours, and none before the one before it.
+public func FixStops(_ stops: inout [GradientStop]) {
+    if stops.isEmpty { return }
+    if stops[0].Position < 0 { stops[0].Position = 0 }
+    if stops[stops.count - 1].Position < 0 { stops[stops.count - 1].Position = 1 }
+    var i = 1
+    while i < stops.count - 1 {
+        if stops[i].Position < 0 {
+            var j = i + 1
+            while j < stops.count && stops[j].Position < 0 { j += 1 }
+            let from = stops[i - 1].Position
+            let to = stops[j].Position
+            let n = float32(j - i + 1)
+            var m = i
+            while m < j {
+                stops[m].Position = from + (to - from) * float32(m - i + 1) / n
+                m += 1
+            }
+            i = j
+        } else {
+            i += 1
+        }
+    }
+    i = 1
+    while i < stops.count {
+        if stops[i].Position < stops[i - 1].Position { stops[i].Position = stops[i - 1].Position }
+        i += 1
     }
 }
 
@@ -136,29 +211,31 @@ extension Canvas {
     /// The gradient line runs through the rectangle's centre at the
     /// angle, long enough that the first stop touches one corner and
     /// the last the opposite, as CSS lays it.
-    public func FillGradient(_ r: IRect, radii: Radii, _ g: LinearGradient) {
-        if r.IsEmpty || g.Stops.isEmpty { return }
-        if g.Stops.count == 1 {
-            FillRounded(r, radii: radii, g.Stops[0].Color)
+    public func FillGradient(_ r: IRect, radii: Radii, _ gradient: LinearGradient) {
+        if r.IsEmpty || gradient.Stops.isEmpty { return }
+        if gradient.Stops.count == 1 {
+            FillRounded(r, radii: radii, gradient.Stops[0].Color)
             return
         }
         let clipped = r.Intersect(Clip)
         if clipped.IsEmpty { return }
-        if let shape = g.Radial {
-            fillRadial(r, clipped: clipped, radii: radii, g, shape)
+        if let shape = gradient.Radial {
+            fillRadial(r, clipped: clipped, radii: radii, gradient, shape)
             return
         }
-        if let conic = g.Conic {
-            fillConic(r, clipped: clipped, radii: radii, g, conic)
+        if let conic = gradient.Conic {
+            fillConic(r, clipped: clipped, radii: radii, gradient.ResolvedFor(1), conic)
             return
         }
-        let rad = g.Angle * 3.14159265 / 180
+        let rad = gradient.Angle * 3.14159265 / 180
         let dx = math.Sin(rad)
         let dy = -math.Cos(rad)
         let w = float32(r.Width)
         let h = float32(r.Height)
         let length = math.Abs(w * dx) + math.Abs(h * dy)
         if length <= 0 { return }
+        // Stops at lengths, placed on this line.
+        let g = gradient.ResolvedFor(length)
         let cx = float32(r.X) + w / 2
         let cy = float32(r.Y) + h / 2
         let fitted = radii.Fitted(w, h)
@@ -209,13 +286,15 @@ extension Canvas {
     /// A radial gradient: each pixel takes the color at its distance
     /// from the centre, as a fraction of the ending shape's radius, and
     /// past the shape the last stop's.
-    func fillRadial(_ r: IRect, clipped: IRect, radii: Radii, _ g: LinearGradient, _ radial: RadialShape) {
+    func fillRadial(_ r: IRect, clipped: IRect, radii: Radii, _ gradient: LinearGradient, _ radial: RadialShape) {
         let w = float32(r.Width)
         let h = float32(r.Height)
         let geo = radial.resolve(float32(r.X), float32(r.Y), w, h)
         // A degenerate shape has the last color everywhere.
         let rx = geo.rx > 0.01 ? geo.rx : 0.01
         let ry = geo.ry > 0.01 ? geo.ry : 0.01
+        // Stops at lengths, along the ray to the ending shape's edge.
+        let g = gradient.ResolvedFor(rx)
         let fitted = radii.Fitted(w, h)
         let shape = RoundedRect(rect: r, radii: fitted)
         let rounded = !fitted.IsZero
