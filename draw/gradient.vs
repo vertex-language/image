@@ -21,11 +21,44 @@ public struct LinearGradient {
     public var Angle: float32
     public var Stops: [GradientStop]
     public var Radial: RadialShape? = nil
+    /// A conic gradient's centre and starting angle: colors go round
+    /// the centre, clockwise from Angle (0 up).
+    public var Conic: ConicShape? = nil
+    /// Whether the stops repeat past the last and before the first, as
+    /// repeating-linear-gradient() and the rest do.
+    public var Repeating: bool = false
 
     public init(angle: float32, stops: [GradientStop]) {
         Angle = angle
         Stops = stops
     }
+}
+
+/// Where a conic gradient's centre is: a fraction of the rectangle's
+/// size, then moved by pixels.
+public struct ConicShape {
+    public var CenterX: float32 = 0.5
+    public var CenterY: float32 = 0.5
+    public var OffsetX: float32 = 0
+    public var OffsetY: float32 = 0
+
+    public init() {}
+
+    public func Scaled(_ k: float32) -> ConicShape {
+        var c = self
+        c.OffsetX *= k
+        c.OffsetY *= k
+        return c
+    }
+}
+
+/// t taken into the stops' span where the gradient repeats.
+func wrapped(_ g: LinearGradient, _ t: float32) -> float32 {
+    if !g.Repeating || g.Stops.count < 2 { return t }
+    let lo = g.Stops[0].Position
+    let span = g.Stops[g.Stops.count - 1].Position - lo
+    if span <= 0.0001 { return t }
+    return lo + math.FloorMod(t - lo, span)
 }
 
 /// How big a radial gradient's ending shape is, as CSS names it.
@@ -115,6 +148,10 @@ extension Canvas {
             fillRadial(r, clipped: clipped, radii: radii, g, shape)
             return
         }
+        if let conic = g.Conic {
+            fillConic(r, clipped: clipped, radii: radii, g, conic)
+            return
+        }
         let rad = g.Angle * 3.14159265 / 180
         let dx = math.Sin(rad)
         let dy = -math.Cos(rad)
@@ -146,7 +183,7 @@ extension Canvas {
             let py = float32(y) + 0.5 - cy
             while x < clipped.Right {
                 let px = float32(x) + 0.5 - cx
-                var t = (px * dx + py * dy) / length + 0.5
+                var t = wrapped(g, (px * dx + py * dy) / length + 0.5)
                 if t < 0 { t = 0 }
                 if t > 1 { t = 1 }
                 let idx = int(t * float32(steps - 1))
@@ -201,7 +238,62 @@ extension Canvas {
             let dy = (float32(y) + 0.5 - geo.cy) * iy
             while x < clipped.Right {
                 let dx = (float32(x) + 0.5 - geo.cx) * ix
-                var t = math.Sqrt(dx * dx + dy * dy)
+                var t = wrapped(g, math.Sqrt(dx * dx + dy * dy))
+                if t > 1 { t = 1 }
+                let idx = int(t * float32(steps - 1))
+                var cov: int32 = 255
+                if rounded { cov = shape.coverage(x, y) }
+                if cov > 0 {
+                    let a = mul255(alphas[idx], uint32(cov))
+                    if a == 255 {
+                        p.pointee = table[idx]
+                    } else if a > 0 {
+                        p.pointee = scalePacked(table[idx], a) &+ scalePacked(p.pointee, 255 - a)
+                    }
+                }
+                p = p + 1
+                x += 1
+            }
+            y += 1
+        }
+    }
+}
+
+extension Canvas {
+    /// A conic gradient: each pixel takes the color at its angle round
+    /// the centre, clockwise from the gradient's starting angle, as a
+    /// fraction of a turn.
+    func fillConic(_ r: IRect, clipped: IRect, radii: Radii, _ g: LinearGradient, _ conic: ConicShape) {
+        let w = float32(r.Width)
+        let h = float32(r.Height)
+        let cx = float32(r.X) + w * conic.CenterX + conic.OffsetX
+        let cy = float32(r.Y) + h * conic.CenterY + conic.OffsetY
+        let fitted = radii.Fitted(w, h)
+        let shape = RoundedRect(rect: r, radii: fitted)
+        let rounded = !fitted.IsZero
+        let steps = 512
+        var table: [uint32] = []
+        var alphas: [uint32] = []
+        var i = 0
+        while i < steps {
+            let c = colorAt(g.Stops, float32(i) / float32(steps - 1))
+            table.append(c.Premultiplied())
+            alphas.append(uint32(c.A))
+            i += 1
+        }
+        let from = g.Angle / 360
+        var y = clipped.Y
+        while y < clipped.Bottom {
+            var p = rowPointer(y) + int(clipped.X)
+            var x = clipped.X
+            let dy = float32(y) + 0.5 - cy
+            while x < clipped.Right {
+                let dx = float32(x) + 0.5 - cx
+                // Clockwise from up: atan2 of x over -y, as a turn.
+                var turn = math.Atan2(dx, -dy) / (2 * 3.14159265)
+                if turn < 0 { turn += 1 }
+                var t = wrapped(g, math.FloorMod(turn - from, 1))
+                if t < 0 { t = 0 }
                 if t > 1 { t = 1 }
                 let idx = int(t * float32(steps - 1))
                 var cov: int32 = 255
