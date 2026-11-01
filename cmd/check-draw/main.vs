@@ -302,6 +302,30 @@ func main() -> int32 {
     }
     check(pixel(tg, 10, 5, 0).r > 117 && pixel(tg, 10, 5, 0).r < 137, "a half-transparent gradient over white is mid grey (got \(pixel(tg, 10, 5, 0)))")
 
+    // Nine slices: a 3x3 image, each pixel its own red, cut one pixel
+    // in from each side.
+    var nine: [uint8] = []
+    var cell = 0
+    while cell < 9 {
+        nine += [uint8(cell * 20 + 10), 0, 0, 255]
+        cell += 1
+    }
+    let nineImage = draw.Image(width: 3, height: 3, pixels: nine)
+    var ns = [uint8](repeating: 0, count: 60 * 30 * 4)
+    draw.WithCanvas(&ns, width: 60, height: 30) { c in
+        c.Clear(draw.Color(255, 255, 255))
+        c.DrawNineSlice(nineImage, into: draw.Rect(0, 0, 30, 30), slice: draw.Edges(all: 1), widths: draw.Edges(all: 5), fill: false,
+                        horizontal: .stretch, vertical: .stretch)
+        c.DrawNineSlice(nineImage, into: draw.Rect(30, 0, 30, 30), slice: draw.Edges(all: 1), widths: draw.Edges(all: 5), fill: true,
+                        horizontal: .space, vertical: .space)
+    }
+    check(pixel(ns, 60, 2, 2).r == 10 && pixel(ns, 60, 15, 2).r == 30 && pixel(ns, 60, 27, 27).r == 170 && pixel(ns, 60, 2, 15).r == 70,
+          "corners and stretched edges come from their slices (got \(pixel(ns, 60, 2, 2)) \(pixel(ns, 60, 15, 2)) \(pixel(ns, 60, 2, 15)))")
+    check(pixel(ns, 60, 15, 15).g == 255, "the middle is left empty without fill")
+    // Spaced: four 5px copies in the 20px top edge, no gap left over.
+    check(pixel(ns, 60, 45, 15).r == 90 && pixel(ns, 60, 45, 15).g == 0, "fill draws the middle slice (got \(pixel(ns, 60, 45, 15)))")
+    check(pixel(ns, 60, 37, 2).r == 30, "spaced copies along an edge (got \(pixel(ns, 60, 37, 2)))")
+
     let m = draw.Affine(2, 1, 3, 4, 5, 6)
     let back = m.Inverted()!.Concat(m)
     check(abs(back.A - 1) < 1e-5 && abs(back.B) < 1e-5 && abs(back.E) < 1e-4, "Inverted undoes a transform")
