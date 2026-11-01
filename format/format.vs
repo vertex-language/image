@@ -63,6 +63,13 @@ func decodePlatform(_ bytes: [uint8]) -> image.RGBA? {
 
 /// DecodeDataURL decodes a `data:` URL's image, base64 or plain.
 public func DecodeDataURL(_ url: string) -> image.RGBA? {
+    guard let payload = DataURLBytes(url) else { return nil }
+    return Decode(payload)
+}
+
+/// DataURLBytes is what a `data:` URL holds: its payload base64-decoded,
+/// or percent-decoded where it is plain (`data:image/svg+xml,%3Csvg…`).
+public func DataURLBytes(_ url: string) -> [uint8]? {
     let b = [uint8](url.utf8)
     if b.count < 6 { return nil }
     var comma = 0
@@ -79,10 +86,27 @@ public func DecodeDataURL(_ url: string) -> image.RGBA? {
     var payload: [uint8] = []
     i = comma + 1
     while i < b.count { payload.append(b[i]); i += 1 }
-    if base64 {
-        payload = base64Decode(payload)
+    if base64 { return base64Decode(payload) }
+    // %XX escapes.
+    var out: [uint8] = []
+    i = 0
+    while i < payload.count {
+        if payload[i] == 37 && i + 2 < payload.count, let hi = hexDigit(payload[i + 1]), let lo = hexDigit(payload[i + 2]) {
+            out.append(hi << 4 | lo)
+            i += 3
+        } else {
+            out.append(payload[i])
+            i += 1
+        }
     }
-    return Decode(payload)
+    return out
+}
+
+func hexDigit(_ c: uint8) -> uint8? {
+    if c >= 48 && c <= 57 { return c - 48 }
+    if c >= 65 && c <= 70 { return c - 55 }
+    if c >= 97 && c <= 102 { return c - 87 }
+    return nil
 }
 
 // base64Decode takes standard or URL-safe base64 and skips anything else

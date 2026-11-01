@@ -132,6 +132,20 @@ extension Layer {
         }
     }
 
+    /// Keeps the layer as much as another layer is bright at each pixel
+    /// (its luminance, premultiplied: dark or transparent hides): a
+    /// mask in mask-mode: luminance.
+    public func MaskByLuminance(_ m: Layer) {
+        Mask { x, y in
+            if !m.Rect.Contains(x, y) { return 0 }
+            let v = m.at(x, y)
+            let r = float32(v & 0xFF)
+            let g = float32((v >> 8) & 0xFF)
+            let b = float32((v >> 16) & 0xFF)
+            return int32(0.2126 * r + 0.7152 * g + 0.0722 * b + 0.5)
+        }
+    }
+
     /// Fills the layer with what a canvas shows over the layer's
     /// rectangle, within the canvas's clip: the backdrop a
     /// backdrop-filter works on. (A layer's own canvas addresses only
