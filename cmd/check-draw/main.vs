@@ -267,6 +267,31 @@ func main() -> int32 {
     }
     check(pixel(tp, 40, 25, 10).r == 0 && pixel(tp, 40, 21, 6).r < 10, "a transformed layer lands where its transform puts it")
     check(pixel(tp, 40, 5, 5).r == 255 && pixel(tp, 40, 31, 10).r == 255, "and nowhere else")
+    // Masks and blending.
+    var mp = [uint8](repeating: 0, count: 60 * 20 * 4)
+    draw.WithCanvas(&mp, width: 60, height: 20) { c in
+        c.Clear(draw.Color(255, 255, 0))
+        let e = draw.Layer(draw.IRect(0, 0, 20, 20))
+        e.Canvas.Fill(draw.IRect(0, 0, 20, 20), draw.Color(255, 0, 0))
+        e.MaskEllipse(cx: 10, cy: 10, rx: 8, ry: 8)
+        e.Composite(onto: c)
+        e.Free()
+        let tri = draw.Layer(draw.IRect(20, 0, 20, 20))
+        tri.Canvas.Fill(draw.IRect(20, 0, 20, 20), draw.Color(0, 0, 255))
+        tri.MaskPolygon([draw.Point(20, 0), draw.Point(40, 0), draw.Point(20, 20)])
+        tri.Composite(onto: c, transform: draw.Affine.identity, blend: .multiply)
+        tri.Free()
+        let fade = draw.Layer(draw.IRect(40, 0, 20, 20))
+        fade.CopyFrom(c)
+        fade.Canvas.Fill(draw.IRect(40, 0, 20, 20), draw.Color(0, 0, 0))
+        fade.MaskGradient(draw.IRect(40, 0, 20, 20), draw.LinearGradient(angle: 90, stops: [draw.GradientStop(draw.Color.black, at: 0), draw.GradientStop(draw.Color(0, 0, 0, 0), at: 1)]))
+        fade.Composite(onto: c)
+        fade.Free()
+    }
+    check(pixel(mp, 60, 10, 10).r == 255 && pixel(mp, 60, 10, 10).g == 0 && pixel(mp, 60, 1, 1).g == 255, "an ellipse mask keeps the middle, not the corner")
+    check(pixel(mp, 60, 22, 2).r == 0 && pixel(mp, 60, 22, 2).g == 0 && pixel(mp, 60, 38, 18).g == 255, "multiply over yellow makes blue black, inside the triangle only")
+    check(pixel(mp, 60, 41, 10).r < 60 && pixel(mp, 60, 58, 10).g > 220, "a gradient mask fades the layer out along it (got \(pixel(mp, 60, 41, 10)) \(pixel(mp, 60, 58, 10)))")
+
     let m = draw.Affine(2, 1, 3, 4, 5, 6)
     let back = m.Inverted()!.Concat(m)
     check(abs(back.A - 1) < 1e-5 && abs(back.B) < 1e-5 && abs(back.E) < 1e-4, "Inverted undoes a transform")
