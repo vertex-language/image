@@ -194,7 +194,7 @@ extension Canvas {
                     if a == 255 {
                         p.pointee = table[idx]
                     } else if a > 0 {
-                        p.pointee = scalePacked(table[idx], a) &+ scalePacked(p.pointee, 255 - a)
+                        p.pointee = scalePacked(table[idx], uint32(cov)) &+ scalePacked(p.pointee, 255 - a)
                     }
                 }
                 p = p + 1
@@ -248,7 +248,7 @@ extension Canvas {
                     if a == 255 {
                         p.pointee = table[idx]
                     } else if a > 0 {
-                        p.pointee = scalePacked(table[idx], a) &+ scalePacked(p.pointee, 255 - a)
+                        p.pointee = scalePacked(table[idx], uint32(cov)) &+ scalePacked(p.pointee, 255 - a)
                     }
                 }
                 p = p + 1
@@ -303,7 +303,7 @@ extension Canvas {
                     if a == 255 {
                         p.pointee = table[idx]
                     } else if a > 0 {
-                        p.pointee = scalePacked(table[idx], a) &+ scalePacked(p.pointee, 255 - a)
+                        p.pointee = scalePacked(table[idx], uint32(cov)) &+ scalePacked(p.pointee, 255 - a)
                     }
                 }
                 p = p + 1

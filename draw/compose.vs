@@ -122,10 +122,22 @@ extension Layer {
         alpha.Free()
     }
 
+    /// Keeps the layer as much as another layer is opaque at each pixel:
+    /// a mask image drawn into a layer of its own. Outside that layer
+    /// nothing is kept.
+    public func MaskBy(_ alpha: Layer) {
+        Mask { x, y in
+            if !alpha.Rect.Contains(x, y) { return 0 }
+            return int32(alpha.at(x, y) >> 24)
+        }
+    }
+
     /// Fills the layer with what a canvas shows over the layer's
-    /// rectangle: the backdrop a backdrop-filter works on.
+    /// rectangle, within the canvas's clip: the backdrop a
+    /// backdrop-filter works on. (A layer's own canvas addresses only
+    /// its clip.)
     public func CopyFrom(_ c: Canvas) {
-        let area = Rect.Intersect(c.Bounds)
+        let area = Rect.Intersect(c.Clip)
         if area.IsEmpty { return }
         var y = area.Y
         while y < area.Bottom {

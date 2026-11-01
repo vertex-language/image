@@ -290,7 +290,17 @@ func main() -> int32 {
     }
     check(pixel(mp, 60, 10, 10).r == 255 && pixel(mp, 60, 10, 10).g == 0 && pixel(mp, 60, 1, 1).g == 255, "an ellipse mask keeps the middle, not the corner")
     check(pixel(mp, 60, 22, 2).r == 0 && pixel(mp, 60, 22, 2).g == 0 && pixel(mp, 60, 38, 18).g == 255, "multiply over yellow makes blue black, inside the triangle only")
-    check(pixel(mp, 60, 41, 10).r < 60 && pixel(mp, 60, 58, 10).g > 220, "a gradient mask fades the layer out along it (got \(pixel(mp, 60, 41, 10)) \(pixel(mp, 60, 58, 10)))")
+    check(pixel(mp, 60, 41, 10).r < 30 && pixel(mp, 60, 58, 10).g > 220, "a gradient mask fades the layer out along it (got \(pixel(mp, 60, 41, 10)) \(pixel(mp, 60, 58, 10)))")
+    // A translucent stop is drawn at its own alpha, not that alpha
+    // squared.
+    var tg = [uint8](repeating: 0, count: 10 * 1 * 4)
+    draw.WithCanvas(&tg, width: 10, height: 1) { c in
+        c.Clear(draw.Color(255, 255, 255))
+        c.FillGradient(draw.IRect(0, 0, 10, 1), radii: draw.Radii.zero,
+                       draw.LinearGradient(angle: 90, stops: [draw.GradientStop(color: draw.Color(0, 0, 0, 128), position: 0),
+                                                               draw.GradientStop(color: draw.Color(0, 0, 0, 128), position: 1)]))
+    }
+    check(pixel(tg, 10, 5, 0).r > 117 && pixel(tg, 10, 5, 0).r < 137, "a half-transparent gradient over white is mid grey (got \(pixel(tg, 10, 5, 0)))")
 
     let m = draw.Affine(2, 1, 3, 4, 5, 6)
     let back = m.Inverted()!.Concat(m)
