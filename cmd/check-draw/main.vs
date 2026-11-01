@@ -254,6 +254,23 @@ func main() -> int32 {
     check(edge.r > 60 && edge.r < 200, "softens its edges (got \(edge.r))")
     check(outside.r == 255, "and draws nothing outside itself")
 
+    // A 10x10 black square at (0,0), moved and rotated a quarter turn
+    // about its center: it covers the same pixels, now at (20,5).
+    var tp = [uint8](repeating: 0, count: 40 * 20 * 4)
+    draw.WithCanvas(&tp, width: 40, height: 20) { c in
+        c.Clear(draw.Color.white)
+        let layer = draw.Layer(draw.IRect(0, 0, 10, 10))
+        layer.Canvas.Fill(draw.IRect(0, 0, 10, 10), draw.Color(0, 0, 0))
+        let t = draw.Affine.translate(25, 10).Concat(draw.Affine.rotate(1.5707964)).Concat(draw.Affine.translate(-5, -5))
+        layer.Composite(onto: c, transform: t)
+        layer.Free()
+    }
+    check(pixel(tp, 40, 25, 10).r == 0 && pixel(tp, 40, 21, 6).r < 10, "a transformed layer lands where its transform puts it")
+    check(pixel(tp, 40, 5, 5).r == 255 && pixel(tp, 40, 31, 10).r == 255, "and nowhere else")
+    let m = draw.Affine(2, 1, 3, 4, 5, 6)
+    let back = m.Inverted()!.Concat(m)
+    check(abs(back.A - 1) < 1e-5 && abs(back.B) < 1e-5 && abs(back.E) < 1e-4, "Inverted undoes a transform")
+
     if failures == 0 {
         print("ALL DRAW CHECKS PASSED")
         return 0
