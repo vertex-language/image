@@ -18,7 +18,20 @@ export module image.format;
 export int32_t platformDecode(const uint8_t* data, int32_t len, int32_t* width, int32_t* height,
                               uint8_t* pixels, int32_t cap) noexcept;
 
+// How many frames an image's bytes hold, and one of them: as platformDecode,
+// with the seconds it shows for in delay.
+export int32_t platformFrameCount(const uint8_t* data, int32_t len) noexcept;
+export int32_t platformDecodeFrame(const uint8_t* data, int32_t len, int32_t index, int32_t* width, int32_t* height,
+                                   uint8_t* pixels, int32_t cap, double* delay) noexcept;
+
 #if !defined(__APPLE__)
+int32_t platformFrameCount(const uint8_t*, int32_t) noexcept { return 0; }
+int32_t platformDecodeFrame(const uint8_t*, int32_t, int32_t, int32_t* width, int32_t* height, uint8_t*, int32_t, double* delay) noexcept {
+    if (width) *width = 0;
+    if (height) *height = 0;
+    if (delay) *delay = 0;
+    return 0;
+}
 int32_t platformDecode(const uint8_t* data, int32_t len, int32_t* width, int32_t* height,
                        uint8_t* pixels, int32_t cap) noexcept {
     (void)data; (void)len; (void)pixels; (void)cap;

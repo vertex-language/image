@@ -30,6 +30,64 @@ public func Sniff(b: [uint8]) -> Kind {
     return .unknown
 }
 
+/// An image with frames of its own: animated GIF, WebP or PNG.
+public final class AnimatedImage {
+    public let Frames: [image.RGBA]
+    /// How long each shows, in seconds.
+    public let Delays: [float64]
+    public let Total: float64
+
+    init(frames: [image.RGBA], delays: [float64]) {
+        Frames = frames
+        Delays = delays
+        var sum: float64 = 0
+        for d in delays { sum += d }
+        Total = sum
+    }
+
+    /// Which frame shows at a time, going round for good.
+    public func FrameIndex(at time: float64) -> int {
+        if Total <= 0 { return 0 }
+        var t = time - Total * float64(int64(time / Total))
+        var i = 0
+        while i < Delays.count {
+            if t < Delays[i] { return i }
+            t -= Delays[i]
+            i += 1
+        }
+        return Delays.count - 1
+    }
+}
+
+/// An image's frames, where it has more than one; nil where it hasn't, or
+/// the platform can't read them.
+public func DecodeAnimated(bytes: [uint8]) -> AnimatedImage? {
+    if bytes.isEmpty { return nil }
+    let count = bytes.withUnsafeBufferPointer { bp in platformFrameCount(UnsafePointer<uint8>(bp.baseAddress!), int32(bytes.count)) }
+    if count < 2 { return nil }
+    var frames: [image.RGBA] = []
+    var delays: [float64] = []
+    var i: int32 = 0
+    while i < count {
+        var w: int32 = 0
+        var h: int32 = 0
+        var delay: float64 = 0
+        let need = bytes.withUnsafeBufferPointer { bp in platformDecodeFrame(UnsafePointer<uint8>(bp.baseAddress!), int32(bytes.count), i, &w, &h, nil, 0, &delay) }
+        if need <= 0 { return nil }
+        var pixels = [uint8](repeating: 0, count: int(need))
+        _ = bytes.withUnsafeBufferPointer { bp in
+            pixels.withUnsafeMutableBufferPointer { out in
+                platformDecodeFrame(UnsafePointer<uint8>(bp.baseAddress!), int32(bytes.count), i, &w, &h, out.baseAddress, need, &delay)
+            }
+        }
+        frames.append(image.RGBA(width: int(w), height: int(h), pixels: pixels))
+        // As browsers do: what says it shows for almost no time shows for a tenth.
+        delays.append(delay < 0.011 ? 0.1 : delay)
+        i += 1
+    }
+    return AnimatedImage(frames: frames, delays: delays)
+}
+
 /// Decode decodes an image's bytes into premultiplied RGBA. Nil where the
 /// bytes are not an image anything here reads.
 public func Decode(bytes: [uint8]) -> image.RGBA? {

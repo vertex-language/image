@@ -44,12 +44,16 @@ public enum Filter: Equatable {
     case saturate(float32)
     case sepia(float32)
     case dropShadow(float32, float32, float32, Color)
+    /// An SVG feColorMatrix's 20 values, row by row, and an feOffset.
+    case matrix([float32])
+    case offset(float32, float32)
 
     /// The filter with its lengths at a canvas's scale.
     public func Scaled(s: float32) -> Filter {
         switch self {
         case .blur(let r): return .blur(r * s)
         case .dropShadow(let x, let y, let r, let c): return .dropShadow(x * s, y * s, r * s, c)
+        case .offset(let x, let y): return .offset(x * s, y * s)
         default: return self
         }
     }
@@ -59,6 +63,7 @@ public enum Filter: Equatable {
         switch self {
         case .blur(let r): return r * 3
         case .dropShadow(let x, let y, let r, _): return math.Max(math.Abs(x), math.Abs(y)) + r * 3
+        case .offset(let x, let y): return math.Max(math.Abs(x), math.Abs(y))
         default: return 0
         }
     }
@@ -97,6 +102,7 @@ extension Layer {
             switch f {
             case .blur(let r): Blur(r)
             case .dropShadow(let x, let y, let r, let c): dropShadow(x, y, r, c)
+            case .offset(let x, let y): moved(x, y)
             default:
                 if let m = matrixOf(f) { applyMatrix(m) }
             }
@@ -125,6 +131,29 @@ extension Layer {
             p = p + 1
             i += 1
         }
+    }
+
+    /// Moves the layer's content; what goes past its edge is lost.
+    func moved(x: float32, y: float32) {
+        let copy = Layer(Rect)
+        let ox = RoundToInt(x)
+        let oy = RoundToInt(y)
+        var py = Rect.Y
+        while py < Rect.Bottom {
+            var px = Rect.X
+            while px < Rect.Right {
+                (copy.pixels + int((py - Rect.Y) * Rect.Width + (px - Rect.X))).pointee = at(px - ox, py - oy)
+                px += 1
+            }
+            py += 1
+        }
+        let count = int(Rect.Width) * int(Rect.Height)
+        var i = 0
+        while i < count {
+            (pixels + i).pointee = (copy.pixels + i).pointee
+            i += 1
+        }
+        copy.Free()
     }
 
     /// Puts a blurred, tinted copy of the layer's alpha under it, moved
@@ -446,6 +475,7 @@ func setSat(c: (float32, float32, float32), s: float32) -> (float32, float32, fl
 /// and drop-shadow.
 func matrixOf(f: Filter) -> [float32]? {
     switch f {
+    case .matrix(let m): return m.count == 20 ? m : nil
     case .brightness(let k):
         return [k, 0, 0, 0, 0, 0, k, 0, 0, 0, 0, 0, k, 0, 0, 0, 0, 0, 1, 0]
     case .contrast(let k):
