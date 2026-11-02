@@ -39,25 +39,34 @@ public struct Layer {
     /// Blurs the layer as a Gaussian of standard deviation sigma pixels
     /// would, near enough: three box blurs each way.
     public func Blur(sigma: float32) {
-        if sigma < 0.5 { return }
+        Blur(sigma, sigma)
+    }
+
+    /// Blurs by a standard deviation each way; one under half a pixel is none.
+    public func Blur(sigmaX: float32, sigmaY: float32) {
+        if sigmaX < 0.5 && sigmaY < 0.5 { return }
         let w = int(Rect.Width)
         let h = int(Rect.Height)
         // Box sizes whose three passes have the Gaussian's variance.
-        let ideal = math.Sqrt(4 * sigma * sigma + 1)
-        var radius = int((ideal - 1) / 2)
-        if radius < 1 { radius = 1 }
+        func radiusOf(sigma: float32) -> int {
+            if sigma < 0.5 { return 0 }
+            let r = int((math.Sqrt(4 * sigma * sigma + 1) - 1) / 2)
+            return r < 1 ? 1 : r
+        }
+        let radiusX = radiusOf(sigmaX)
+        let radiusY = radiusOf(sigmaY)
         let longest = w > h ? w : h
         let line = UnsafeMutablePointer<uint32>.allocate(capacity: longest)
         var pass = 0
         while pass < 3 {
             var y = 0
-            while y < h {
-                blurLine(pixels + y * w, step: 1, count: w, radius: radius, scratch: line)
+            while radiusX > 0 && y < h {
+                blurLine(pixels + y * w, step: 1, count: w, radius: radiusX, scratch: line)
                 y += 1
             }
             var x = 0
-            while x < w {
-                blurLine(pixels + x, step: w, count: h, radius: radius, scratch: line)
+            while radiusY > 0 && x < w {
+                blurLine(pixels + x, step: w, count: h, radius: radiusY, scratch: line)
                 x += 1
             }
             pass += 1

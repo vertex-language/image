@@ -110,7 +110,178 @@ public struct Matrix4: Equatable {
     }
 }
 
+/// A plane of a 3D context, on its way to a canvas.
+public struct DepthPlane {
+    public let Plane: Layer
+    public let Matrix: Matrix4
+    public let Blend: BlendMode
+
+    public init(plane: Layer, matrix: Matrix4, blend: BlendMode) {
+        Plane = plane
+        Matrix = matrix
+        Blend = blend
+    }
+}
+
+/// The planes of a 3D context onto a canvas, given the farthest first. Planes
+/// whose depths don't overlap go down whole; where they might cross, each
+/// pixel takes its planes by their depths there.
+public func CompositePlanes(planes: [DepthPlane], onto c: Canvas) {
+    var inverses: [[float32]] = []
+    var kept: [DepthPlane] = []
+    var areas: [IRect] = []
+    var content: [IRect] = []
+    var lows: [float32] = []
+    var highs: [float32] = []
+    for p in planes {
+        guard let inv = p.Matrix.planeInverse() else { continue }
+        let drawn = p.Plane.contentBounds()
+        if drawn.IsEmpty { continue }
+        var low: float32 = 1e9
+        var high: float32 = -1e9
+        var area = c.Clip
+        var x0: float32 = 1e9
+        var y0: float32 = 1e9
+        var x1: float32 = -1e9
+        var y1: float32 = -1e9
+        var behind = false
+        let corners = [(float32(drawn.X), float32(drawn.Y)), (float32(drawn.Right), float32(drawn.Y)),
+                       (float32(drawn.X), float32(drawn.Bottom)), (float32(drawn.Right), float32(drawn.Bottom))]
+        for corner in corners {
+            let q = p.Matrix.Apply(corner.0, corner.1)
+            if q.w <= 0 {
+                behind = true
+                continue
+            }
+            low = math.Min(low, q.z / q.w)
+            high = math.Max(high, q.z / q.w)
+            x0 = math.Min(x0, q.x / q.w)
+            y0 = math.Min(y0, q.y / q.w)
+            x1 = math.Max(x1, q.x / q.w)
+            y1 = math.Max(y1, q.y / q.w)
+        }
+        if !behind { area = IRect(int32(math.Floor(x0)), int32(math.Floor(y0)), int32(math.Ceil(x1 - x0)) + 2, int32(math.Ceil(y1 - y0)) + 2).Intersect(c.Clip) }
+        if behind {
+            low = -1e9
+            high = 1e9
+        }
+        if area.IsEmpty { continue }
+        inverses.append(inv)
+        kept.append(p)
+        areas.append(area)
+        content.append(drawn)
+        lows.append(low)
+        highs.append(high)
+    }
+    // Whether two planes that share any pixels share depths too.
+    var crossing = false
+    var i = 0
+    while i < kept.count && !crossing {
+        var j = i + 1
+        while j < kept.count {
+            if !areas[i].Intersect(areas[j]).IsEmpty && lows[j] < highs[i] && lows[i] < highs[j] {
+                crossing = true
+                break
+            }
+            j += 1
+        }
+        i += 1
+    }
+    if !crossing {
+        for p in kept { p.Plane.Composite(onto: c, matrix: p.Matrix, blend: p.Blend) }
+        return
+    }
+    var union = IRect.zero
+    for a in areas { union = union.Union(a) }
+    var depths = [float32](repeating: 0, count: kept.count)
+    var colors = [uint32](repeating: 0, count: kept.count)
+    var modes = [int](repeating: 0, count: kept.count)
+    var y = union.Y
+    while y < union.Bottom {
+        var dst = c.rowPointer(y) + int(union.X)
+        var x = union.X
+        while x < union.Right {
+            var n = 0
+            var k = 0
+            while k < kept.count {
+                if areas[k].Contains(x, y) {
+                    let inv = inverses[k]
+                    let sx = float32(x) + 0.5
+                    let sy = float32(y) + 0.5
+                    let w = inv[6] * sx + inv[7] * sy + inv[8]
+                    if w != 0 {
+                        let px = (inv[0] * sx + inv[1] * sy + inv[2]) / w
+                        let py = (inv[3] * sx + inv[4] * sy + inv[5]) / w
+                        let s = kept[k].Plane.sample(px - 0.5, py - 0.5)
+                        if (s >> 24) != 0 {
+                            let q = kept[k].Matrix.Apply(px, py)
+                            if q.w > 0 {
+                                // In by depth, the farthest first; ties stay in order.
+                                let z = q.z / q.w
+                                var at = n
+                                while at > 0 && depths[at - 1] > z {
+                                    depths[at] = depths[at - 1]
+                                    colors[at] = colors[at - 1]
+                                    modes[at] = modes[at - 1]
+                                    at -= 1
+                                }
+                                depths[at] = z
+                                colors[at] = s
+                                modes[at] = k
+                                n += 1
+                            }
+                        }
+                    }
+                }
+                k += 1
+            }
+            k = 0
+            while k < n {
+                let s = colors[k]
+                let blend = kept[modes[k]].Blend
+                if blend != .normal {
+                    dst.pointee = blendPixel(s, dst.pointee, blend)
+                } else if (s >> 24) == 255 {
+                    dst.pointee = s
+                } else {
+                    dst.pointee = s &+ scalePacked(dst.pointee, 255 - (s >> 24))
+                }
+                k += 1
+            }
+            dst = dst + 1
+            x += 1
+        }
+        y += 1
+    }
+}
+
 extension Layer {
+    /// The rectangle round what's been drawn in the layer.
+    func contentBounds() -> IRect {
+        var x0 = Rect.Right
+        var y0 = Rect.Bottom
+        var x1 = Rect.X
+        var y1 = Rect.Y
+        var y = Rect.Y
+        var p = pixels
+        while y < Rect.Bottom {
+            var x = Rect.X
+            while x < Rect.Right {
+                if (p.pointee >> 24) != 0 {
+                    if x < x0 { x0 = x }
+                    if x >= x1 { x1 = x + 1 }
+                    if y < y0 { y0 = y }
+                    if y >= y1 { y1 = y + 1 }
+                }
+                p = p + 1
+                x += 1
+            }
+            y += 1
+        }
+        if x1 <= x0 || y1 <= y0 { return IRect(Rect.X, Rect.Y, 0, 0) }
+        return IRect(x0, y0, x1 - x0, y1 - y0)
+    }
+
     /// Paints the layer onto a canvas through a 3D transform of the
     /// canvas's own pixel coordinates, with perspective, each pixel
     /// sampling the layer bilinearly. What falls behind the viewer is cut.

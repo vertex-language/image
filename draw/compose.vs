@@ -47,6 +47,8 @@ public enum Filter: Equatable {
     /// An SVG feColorMatrix's 20 values, row by row, and an feOffset.
     case matrix([float32])
     case offset(float32, float32)
+    /// An SVG <filter> whose primitives name their inputs.
+    case graph(FilterGraph)
 
     /// The filter with its lengths at a canvas's scale.
     public func Scaled(s: float32) -> Filter {
@@ -54,6 +56,7 @@ public enum Filter: Equatable {
         case .blur(let r): return .blur(r * s)
         case .dropShadow(let x, let y, let r, let c): return .dropShadow(x * s, y * s, r * s, c)
         case .offset(let x, let y): return .offset(x * s, y * s)
+        case .graph(let g): return .graph(g.scaled(s))
         default: return self
         }
     }
@@ -96,10 +99,13 @@ extension Layer {
         return Color(un(v & 0xFF), un((v >> 8) & 0xFF), un((v >> 16) & 0xFF), uint8(a))
     }
 
-    /// Runs filters over the layer, in order.
-    public func Apply(filters: [Filter]) {
+    /// Runs filters over the layer, in order. A graph's region is reckoned
+    /// from box, the layer where none is said, whose user space starts at the
+    /// origin.
+    public func Apply(filters: [Filter], box: IRect? = nil, originX: float32 = 0, originY: float32 = 0) {
         for f in filters {
             switch f {
+            case .graph(let g): applyGraph(g, box: box ?? Rect, originX: originX, originY: originY)
             case .blur(let r): Blur(r)
             case .dropShadow(let x, let y, let r, let c): dropShadow(x, y, r, c)
             case .offset(let x, let y): moved(x, y)
