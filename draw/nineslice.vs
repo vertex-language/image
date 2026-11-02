@@ -46,10 +46,10 @@ extension Canvas {
     /// Draws img cut at slice (in the image's pixels from each side)
     /// round area: each corner piece into a corner widths in from the
     /// sides, each edge piece along its side by the side's repeat, and
-    /// the middle piece over the inside where fill is set. Widths too
-    /// wide for the area are scaled down together.
+    /// the middle piece over the inside where fill is set, all of it at
+    /// opacity. Widths too wide for the area are scaled down together.
     public func DrawNineSlice(_ img: Image, into area: Rect, slice: Edges, widths: Edges, fill: bool,
-                              horizontal: SliceRepeat, vertical: SliceRepeat) {
+                              horizontal: SliceRepeat, vertical: SliceRepeat, opacity: float32 = 1) {
         if img.Width <= 0 || img.Height <= 0 || area.Width <= 0 || area.Height <= 0 { return }
         let iw = float32(img.Width)
         let ih = float32(img.Height)
@@ -88,14 +88,14 @@ extension Canvas {
                 var th = dst.Height
                 if col == 1 { tw = pw * (row == 1 ? across : dst.Height / ph) }
                 if row == 1 { th = ph * (col == 1 ? down : dst.Width / pw) }
-                tilePiece(piece, dst, tw, th, col == 1 ? horizontal : .stretch, row == 1 ? vertical : .stretch)
+                tilePiece(piece, dst, tw, th, col == 1 ? horizontal : .stretch, row == 1 ? vertical : .stretch, opacity)
                 col += 1
             }
             row += 1
         }
     }
 
-    func tilePiece(_ piece: Image, _ dst: Rect, _ tw: float32, _ th: float32, _ mh: SliceRepeat, _ mv: SliceRepeat) {
+    func tilePiece(_ piece: Image, _ dst: Rect, _ tw: float32, _ th: float32, _ mh: SliceRepeat, _ mv: SliceRepeat, _ opacity: float32) {
         if tw <= 0 || th <= 0 { return }
         let xs = slicePlaces(dst.X, dst.Width, tw, mh)
         let ys = slicePlaces(dst.Y, dst.Height, th, mv)
@@ -108,7 +108,7 @@ extension Canvas {
             for x in xs.starts {
                 let px = RoundToInt(x)
                 let py = RoundToInt(y)
-                side.DrawImage(piece, into: IRect(px, py, RoundToInt(x + xs.size) - px, RoundToInt(y + ys.size) - py))
+                side.DrawImage(piece, into: IRect(px, py, RoundToInt(x + xs.size) - px, RoundToInt(y + ys.size) - py), opacity: opacity)
             }
         }
     }
