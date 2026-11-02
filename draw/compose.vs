@@ -22,9 +22,138 @@ public enum BlendMode: Equatable {
     case softLight
     case difference
     case exclusion
+    case hue
+    case saturation
+    case color
+    case luminosity
+    case plusLighter
+}
+
+/// One step of CSS's filter: blur in pixels, an amount for the rest
+/// (1 is unchanged for brightness, contrast, saturate and opacity, and
+/// full for grayscale, invert and sepia), hue-rotate in degrees, and a
+/// drop shadow's offset, blur and color.
+public enum Filter: Equatable {
+    case blur(float32)
+    case brightness(float32)
+    case contrast(float32)
+    case grayscale(float32)
+    case hueRotate(float32)
+    case invert(float32)
+    case opacity(float32)
+    case saturate(float32)
+    case sepia(float32)
+    case dropShadow(float32, float32, float32, Color)
+
+    /// The filter with its lengths at a canvas's scale.
+    public func Scaled(s: float32) -> Filter {
+        switch self {
+        case .blur(let r): return .blur(r * s)
+        case .dropShadow(let x, let y, let r, let c): return .dropShadow(x * s, y * s, r * s, c)
+        default: return self
+        }
+    }
+
+    /// How far past a box the filter can paint, in the filter's own units.
+    public var Reach: float32 {
+        switch self {
+        case .blur(let r): return r * 3
+        case .dropShadow(let x, let y, let r, _): return math.Max(math.Abs(x), math.Abs(y)) + r * 3
+        default: return 0
+        }
+    }
 }
 
 extension Layer {
+    /// Colors the layer: each pixel takes the color asked of its position,
+    /// scaled by the pixel's own alpha. A gradient over a shape drawn white.
+    public func Shade(color: (int32, int32) -> Color) {
+        var y = Rect.Y
+        while y < Rect.Bottom {
+            var p = pixels + int((y - Rect.Y) * Rect.Width)
+            var x = Rect.X
+            while x < Rect.Right {
+                let a = p.pointee >> 24
+                if a != 0 { p.pointee = scalePacked(color(x, y).Premultiplied(), a) }
+                p = p + 1
+                x += 1
+            }
+            y += 1
+        }
+    }
+
+    /// Runs filters over the layer, in order.
+    public func Apply(filters: [Filter]) {
+        for f in filters {
+            switch f {
+            case .blur(let r): Blur(r)
+            case .dropShadow(let x, let y, let r, let c): dropShadow(x, y, r, c)
+            default:
+                if let m = matrixOf(f) { applyMatrix(m) }
+            }
+        }
+    }
+
+    /// Multiplies each pixel's unpremultiplied color by a matrix of four
+    /// rows of five (r g b a and an offset), alpha by the last row.
+    func applyMatrix(m: [float32]) {
+        var p = pixels
+        let count = int(Rect.Width) * int(Rect.Height)
+        var i = 0
+        while i < count {
+            let v = p.pointee
+            let a = float32(v >> 24) / 255
+            if a > 0 {
+                let r = float32(v & 0xFF) / 255 / a
+                let g = float32((v >> 8) & 0xFF) / 255 / a
+                let b = float32((v >> 16) & 0xFF) / 255 / a
+                let na = math.Clamp(m[15] * r + m[16] * g + m[17] * b + m[18] * a + m[19], 0, 1)
+                let nr = math.Clamp(m[0] * r + m[1] * g + m[2] * b + m[3] * a + m[4], 0, 1) * na
+                let ng = math.Clamp(m[5] * r + m[6] * g + m[7] * b + m[8] * a + m[9], 0, 1) * na
+                let nb = math.Clamp(m[10] * r + m[11] * g + m[12] * b + m[13] * a + m[14], 0, 1) * na
+                p.pointee = uint32(nr * 255 + 0.5) | uint32(ng * 255 + 0.5) << 8 | uint32(nb * 255 + 0.5) << 16 | uint32(na * 255 + 0.5) << 24
+            }
+            p = p + 1
+            i += 1
+        }
+    }
+
+    /// Puts a blurred, tinted copy of the layer's alpha under it, moved
+    /// by an offset. What is moved past the layer's edge is lost.
+    func dropShadow(x: float32, y: float32, r: float32, c: Color) {
+        let shadow = Layer(Rect)
+        let tint = c.Premultiplied()
+        let ox = RoundToInt(x)
+        let oy = RoundToInt(y)
+        var py = Rect.Y
+        while py < Rect.Bottom {
+            var px = Rect.X
+            while px < Rect.Right {
+                let sx = px - ox
+                let sy = py - oy
+                if Rect.Contains(sx, sy) {
+                    let a = at(sx, sy) >> 24
+                    if a > 0 { (shadow.pixels + int((py - Rect.Y) * Rect.Width + (px - Rect.X))).pointee = scalePacked(tint, a) }
+                }
+                px += 1
+            }
+            py += 1
+        }
+        shadow.Blur(r)
+        // The layer over its shadow.
+        var p = pixels
+        var q = shadow.pixels
+        let count = int(Rect.Width) * int(Rect.Height)
+        var i = 0
+        while i < count {
+            let s = p.pointee
+            p.pointee = s &+ scalePacked(q.pointee, 255 - (s >> 24))
+            p = p + 1
+            q = q + 1
+            i += 1
+        }
+        shadow.Free()
+    }
     /// Scales each pixel by a coverage from 0 to 255: what is outside a
     /// mask goes, what is at its edge fades.
     public func Mask(coverage: (int32, int32) -> int32) {
@@ -209,6 +338,20 @@ extension Layer {
 func blendPixel(s: uint32, d: uint32, mode: BlendMode) -> uint32 {
     let sa = float32(s >> 24) / 255
     let da = float32(d >> 24) / 255
+    if mode == .plusLighter {
+        // s + d, each channel and alpha, clamped.
+        var sum: uint32 = 0
+        var at: uint32 = 0
+        while at < 32 {
+            let v = ((s >> at) & 0xFF) + ((d >> at) & 0xFF)
+            sum |= (v > 255 ? 255 : v) << at
+            at += 8
+        }
+        return sum
+    }
+    if mode == .hue || mode == .saturation || mode == .color || mode == .luminosity {
+        return blendNonSeparable(s, d, sa, da, mode)
+    }
     var out: uint32 = 0
     var shift: uint32 = 0
     while shift < 24 {
@@ -225,6 +368,113 @@ func blendPixel(s: uint32, d: uint32, mode: BlendMode) -> uint32 {
     let a = sa + da - sa * da
     out |= uint32(math.Clamp(a, 0, 1) * 255 + 0.5) << 24
     return out
+}
+
+/// The blend modes that mix a pixel's three channels together, as
+/// Compositing and Blending names them.
+func blendNonSeparable(s: uint32, d: uint32, sa: float32, da: float32, mode: BlendMode) -> uint32 {
+    func channels(v: uint32, a: float32) -> (float32, float32, float32) {
+        if a <= 0 { return (0, 0, 0) }
+        return (float32(v & 0xFF) / 255 / a, float32((v >> 8) & 0xFF) / 255 / a, float32((v >> 16) & 0xFF) / 255 / a)
+    }
+    let cs = channels(s, sa)
+    let cd = channels(d, da)
+    var mixed = cs
+    switch mode {
+    case .hue: mixed = setLum(setSat(cs, satOf(cd)), lumOf(cd))
+    case .saturation: mixed = setLum(setSat(cd, satOf(cs)), lumOf(cd))
+    case .color: mixed = setLum(cs, lumOf(cd))
+    default: mixed = setLum(cd, lumOf(cs))
+    }
+    func channel(shift: uint32, m: float32) -> uint32 {
+        let sc = float32((s >> shift) & 0xFF) / 255
+        let dc = float32((d >> shift) & 0xFF) / 255
+        let v = sc * (1 - da) + dc * (1 - sa) + m * sa * da
+        return uint32(math.Clamp(v, 0, 1) * 255 + 0.5) << shift
+    }
+    let a = sa + da - sa * da
+    return channel(0, mixed.0) | channel(8, mixed.1) | channel(16, mixed.2) | uint32(math.Clamp(a, 0, 1) * 255 + 0.5) << 24
+}
+
+func lumOf(c: (float32, float32, float32)) -> float32 {
+    return 0.3 * c.0 + 0.59 * c.1 + 0.11 * c.2
+}
+
+func satOf(c: (float32, float32, float32)) -> float32 {
+    return math.Max(c.0, math.Max(c.1, c.2)) - math.Min(c.0, math.Min(c.1, c.2))
+}
+
+func setLum(c: (float32, float32, float32), l: float32) -> (float32, float32, float32) {
+    let d = l - lumOf(c)
+    return clipColor((c.0 + d, c.1 + d, c.2 + d))
+}
+
+func clipColor(c: (float32, float32, float32)) -> (float32, float32, float32) {
+    let l = lumOf(c)
+    let lo = math.Min(c.0, math.Min(c.1, c.2))
+    let hi = math.Max(c.0, math.Max(c.1, c.2))
+    var out = c
+    if lo < 0 {
+        let k = l / (l - lo)
+        out = (l + (out.0 - l) * k, l + (out.1 - l) * k, l + (out.2 - l) * k)
+    }
+    if hi > 1 {
+        let k = (1 - l) / (hi - l)
+        out = (l + (out.0 - l) * k, l + (out.1 - l) * k, l + (out.2 - l) * k)
+    }
+    return out
+}
+
+func setSat(c: (float32, float32, float32), s: float32) -> (float32, float32, float32) {
+    let lo = math.Min(c.0, math.Min(c.1, c.2))
+    let hi = math.Max(c.0, math.Max(c.1, c.2))
+    if hi <= lo { return (0, 0, 0) }
+    let k = s / (hi - lo)
+    return ((c.0 - lo) * k, (c.1 - lo) * k, (c.2 - lo) * k)
+}
+
+/// A filter's color matrix, as Filter Effects defines them; nil for blur
+/// and drop-shadow.
+func matrixOf(f: Filter) -> [float32]? {
+    switch f {
+    case .brightness(let k):
+        return [k, 0, 0, 0, 0, 0, k, 0, 0, 0, 0, 0, k, 0, 0, 0, 0, 0, 1, 0]
+    case .contrast(let k):
+        let o = 0.5 - 0.5 * k
+        return [k, 0, 0, 0, o, 0, k, 0, 0, o, 0, 0, k, 0, o, 0, 0, 0, 1, 0]
+    case .invert(let k):
+        let m = 1 - 2 * k
+        return [m, 0, 0, 0, k, 0, m, 0, 0, k, 0, 0, m, 0, k, 0, 0, 0, 1, 0]
+    case .opacity(let k):
+        return [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, k, 0]
+    case .grayscale(let amount):
+        let k = 1 - amount
+        return [0.2126 + 0.7874 * k, 0.7152 - 0.7152 * k, 0.0722 - 0.0722 * k, 0, 0,
+                0.2126 - 0.2126 * k, 0.7152 + 0.2848 * k, 0.0722 - 0.0722 * k, 0, 0,
+                0.2126 - 0.2126 * k, 0.7152 - 0.7152 * k, 0.0722 + 0.9278 * k, 0, 0,
+                0, 0, 0, 1, 0]
+    case .sepia(let amount):
+        let k = 1 - amount
+        return [0.393 + 0.607 * k, 0.769 - 0.769 * k, 0.189 - 0.189 * k, 0, 0,
+                0.349 - 0.349 * k, 0.686 + 0.314 * k, 0.168 - 0.168 * k, 0, 0,
+                0.272 - 0.272 * k, 0.534 - 0.534 * k, 0.131 + 0.869 * k, 0, 0,
+                0, 0, 0, 1, 0]
+    case .saturate(let k):
+        return [0.213 + 0.787 * k, 0.715 - 0.715 * k, 0.072 - 0.072 * k, 0, 0,
+                0.213 - 0.213 * k, 0.715 + 0.285 * k, 0.072 - 0.072 * k, 0, 0,
+                0.213 - 0.213 * k, 0.715 - 0.715 * k, 0.072 + 0.928 * k, 0, 0,
+                0, 0, 0, 1, 0]
+    case .hueRotate(let degrees):
+        let rad = degrees * 3.14159265 / 180
+        let c = math.Cos(rad)
+        let n = math.Sin(rad)
+        return [0.213 + c * 0.787 - n * 0.213, 0.715 - c * 0.715 - n * 0.715, 0.072 - c * 0.072 + n * 0.928, 0, 0,
+                0.213 - c * 0.213 + n * 0.143, 0.715 + c * 0.285 + n * 0.140, 0.072 - c * 0.072 - n * 0.283, 0, 0,
+                0.213 - c * 0.213 - n * 0.787, 0.715 - c * 0.715 + n * 0.715, 0.072 + c * 0.928 + n * 0.072, 0, 0,
+                0, 0, 0, 1, 0]
+    default:
+        return nil
+    }
 }
 
 func blendChannel(cs: float32, cd: float32, mode: BlendMode) -> float32 {
