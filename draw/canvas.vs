@@ -265,7 +265,7 @@ public struct Canvas {
     /// differ: box-filtered when shrinking, bilinear when growing. With
     /// a shape, only the part of the image inside that rounded
     /// rectangle shows, its curves anti-aliased.
-    public func DrawImage(img: Image, into dst: IRect, opacity: float32 = 1, shape: IRect? = nil, radii: Radii? = nil) {
+    public func DrawImage(img: Image, into dst: IRect, opacity: float32 = 1, shape: IRect? = nil, radii: Radii? = nil, nearest: bool = false) {
         if img.Width <= 0 || img.Height <= 0 || dst.IsEmpty { return }
         var target = dst.Intersect(Clip)
         var shapeRect = dst
@@ -291,6 +291,11 @@ public struct Canvas {
                     var s: uint32 = 0
                     if sameSize {
                         s = (ibase + int((y - dst.Y) * img.Width + (x - dst.X))).pointee
+                    } else if nearest {
+                        // Each pixel of the image a block of its own.
+                        let ix = (x - dst.X) * img.Width / dst.Width
+                        let iy = (y - dst.Y) * img.Height / dst.Height
+                        s = (ibase + int(iy * img.Width + ix)).pointee
                     } else {
                         s = sample(ibase, img.Width, img.Height, x - dst.X, y - dst.Y, dst.Width, dst.Height)
                     }
