@@ -12,7 +12,7 @@ public struct Affine: Equatable {
     public var E: float32
     public var F: float32
 
-    public init(_ a: float32, _ b: float32, _ c: float32, _ d: float32, _ e: float32, _ f: float32) {
+    public init(a: float32, b: float32, c: float32, d: float32, e: float32, f: float32) {
         A = a
         B = b
         C = c
@@ -23,25 +23,25 @@ public struct Affine: Equatable {
 
     public static let identity = Affine(1, 0, 0, 1, 0, 0)
 
-    public static func translate(_ x: float32, _ y: float32) -> Affine { return Affine(1, 0, 0, 1, x, y) }
-    public static func scale(_ x: float32, _ y: float32) -> Affine { return Affine(x, 0, 0, y, 0, 0) }
+    public static func translate(x: float32, y: float32) -> Affine { return Affine(1, 0, 0, 1, x, y) }
+    public static func scale(x: float32, y: float32) -> Affine { return Affine(x, 0, 0, y, 0, 0) }
 
     /// A rotation by radians, clockwise on a y-down canvas.
-    public static func rotate(_ radians: float32) -> Affine {
+    public static func rotate(radians: float32) -> Affine {
         let c = math.Cos(radians)
         let s = math.Sin(radians)
         return Affine(c, s, -s, c, 0, 0)
     }
 
     /// A skew by angles in radians along x and y.
-    public static func skew(_ x: float32, _ y: float32) -> Affine {
+    public static func skew(x: float32, y: float32) -> Affine {
         return Affine(1, math.Tan(y), math.Tan(x), 1, 0, 0)
     }
 
     public var IsIdentity: bool { return self == Affine.identity }
 
     /// This transform after o: the point goes through o, then this.
-    public func Concat(_ o: Affine) -> Affine {
+    public func Concat(o: Affine) -> Affine {
         return Affine(A * o.A + C * o.B, B * o.A + D * o.B,
                       A * o.C + C * o.D, B * o.C + D * o.D,
                       A * o.E + C * o.F + E, B * o.E + D * o.F + F)
@@ -60,12 +60,12 @@ public struct Affine: Equatable {
         return Affine(a, b, c, d, -(a * E + c * F), -(b * E + d * F))
     }
 
-    public func Apply(_ x: float32, _ y: float32) -> (x: float32, y: float32) {
+    public func Apply(x: float32, y: float32) -> (x: float32, y: float32) {
         return (x: A * x + C * y + E, y: B * x + D * y + F)
     }
 
     /// The bounds of a rectangle once transformed.
-    public func Bounds(_ r: Rect) -> Rect {
+    public func Bounds(r: Rect) -> Rect {
         let p0 = Apply(r.X, r.Y)
         let p1 = Apply(r.Right, r.Y)
         let p2 = Apply(r.X, r.Bottom)
@@ -119,7 +119,7 @@ extension Layer {
 
     /// The layer's pixel at canvas coordinates (x, y), between pixel
     /// centers blended bilinearly; transparent outside it.
-    func sample(_ x: float32, _ y: float32) -> uint32 {
+    func sample(x: float32, y: float32) -> uint32 {
         let fx = math.Floor(x)
         let fy = math.Floor(y)
         let ix = int32(fx)
@@ -136,14 +136,14 @@ extension Layer {
         return lerpPacked(top, bottom, wy)
     }
 
-    func at(_ x: int32, _ y: int32) -> uint32 {
+    func at(x: int32, y: int32) -> uint32 {
         if x < Rect.X || y < Rect.Y || x >= Rect.Right || y >= Rect.Bottom { return 0 }
         return (pixels + int((y - Rect.Y) * Rect.Width + (x - Rect.X))).pointee
     }
 }
 
 /// a and b blended, w/256 of the way to b, channel by channel.
-func lerpPacked(_ a: uint32, _ b: uint32, _ w: uint32) -> uint32 {
+func lerpPacked(a: uint32, b: uint32, w: uint32) -> uint32 {
     if w == 0 { return a }
     if w >= 256 { return b }
     let iw = 256 - w

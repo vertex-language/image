@@ -27,7 +27,7 @@ public enum BlendMode: Equatable {
 extension Layer {
     /// Scales each pixel by a coverage from 0 to 255: what is outside a
     /// mask goes, what is at its edge fades.
-    public func Mask(_ coverage: (int32, int32) -> int32) {
+    public func Mask(coverage: (int32, int32) -> int32) {
         var y = Rect.Y
         while y < Rect.Bottom {
             var p = pixels + int((y - Rect.Y) * Rect.Width)
@@ -46,7 +46,7 @@ extension Layer {
     }
 
     /// Keeps the layer inside a rounded rectangle.
-    public func MaskRounded(_ r: IRect, radii: Radii) {
+    public func MaskRounded(r: IRect, radii: Radii) {
         let shape = RoundedRect(rect: r, radii: radii.Fitted(float32(r.Width), float32(r.Height)))
         Mask { x, y in shape.coverage(x, y) }
     }
@@ -72,12 +72,12 @@ extension Layer {
 
     /// Keeps the layer inside a polygon (nonzero winding), each pixel
     /// sampled at four points for a smooth edge.
-    public func MaskPolygon(_ points: [Point]) {
+    public func MaskPolygon(points: [Point]) {
         if points.count < 3 {
             Mask { _, _ in 0 }
             return
         }
-        func inside(_ px: float32, _ py: float32) -> bool {
+        func inside(px: float32, py: float32) -> bool {
             var winding = 0
             var i = 0
             while i < points.count {
@@ -107,7 +107,7 @@ extension Layer {
     /// Keeps the layer as much as a gradient over r is opaque: a
     /// mask-image of linear-gradient(black, transparent) fades it out.
     /// Outside r nothing is kept.
-    public func MaskGradient(_ r: IRect, _ g: LinearGradient) {
+    public func MaskGradient(r: IRect, g: LinearGradient) {
         let area = r.Intersect(Rect)
         if area.IsEmpty {
             Mask { _, _ in 0 }
@@ -125,7 +125,7 @@ extension Layer {
     /// Keeps the layer as much as another layer is opaque at each pixel:
     /// a mask image drawn into a layer of its own. Outside that layer
     /// nothing is kept.
-    public func MaskBy(_ alpha: Layer) {
+    public func MaskBy(alpha: Layer) {
         Mask { x, y in
             if !alpha.Rect.Contains(x, y) { return 0 }
             return int32(alpha.at(x, y) >> 24)
@@ -135,7 +135,7 @@ extension Layer {
     /// Keeps the layer as much as another layer is bright at each pixel
     /// (its luminance, premultiplied: dark or transparent hides): a
     /// mask in mask-mode: luminance.
-    public func MaskByLuminance(_ m: Layer) {
+    public func MaskByLuminance(m: Layer) {
         Mask { x, y in
             if !m.Rect.Contains(x, y) { return 0 }
             let v = m.at(x, y)
@@ -150,7 +150,7 @@ extension Layer {
     /// rectangle, within the canvas's clip: the backdrop a
     /// backdrop-filter works on. (A layer's own canvas addresses only
     /// its clip.)
-    public func CopyFrom(_ c: Canvas) {
+    public func CopyFrom(c: Canvas) {
         let area = Rect.Intersect(c.Clip)
         if area.IsEmpty { return }
         var y = area.Y
@@ -206,7 +206,7 @@ extension Layer {
 /// A premultiplied source pixel over a premultiplied destination, mixed
 /// by a blend mode: s(1-da) + d(1-sa) + B(cs, cd) sa da, channel by
 /// channel.
-func blendPixel(_ s: uint32, _ d: uint32, _ mode: BlendMode) -> uint32 {
+func blendPixel(s: uint32, d: uint32, mode: BlendMode) -> uint32 {
     let sa = float32(s >> 24) / 255
     let da = float32(d >> 24) / 255
     var out: uint32 = 0
@@ -227,7 +227,7 @@ func blendPixel(_ s: uint32, _ d: uint32, _ mode: BlendMode) -> uint32 {
     return out
 }
 
-func blendChannel(_ cs: float32, _ cd: float32, _ mode: BlendMode) -> float32 {
+func blendChannel(cs: float32, cd: float32, mode: BlendMode) -> float32 {
     switch mode {
     case .multiply: return cs * cd
     case .screen: return cs + cd - cs * cd

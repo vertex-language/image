@@ -12,12 +12,12 @@ struct bitReader {
     var bits: uint32 = 0
     var count: int = 0
 
-    init(_ data: [uint8], at: int) {
+    init(data: [uint8], at: int) {
         self.data = data
         self.pos = at
     }
 
-    mutating func need(_ n: int) throws {
+    mutating func need(n: int) throws {
         while count < n {
             if pos >= data.count { throw PngError.badData("deflate stream ends early") }
             bits |= uint32(data[pos]) << uint32(count)
@@ -26,7 +26,7 @@ struct bitReader {
         }
     }
 
-    mutating func take(_ n: int) throws -> int {
+    mutating func take(n: int) throws -> int {
         if n == 0 { return 0 }
         try need(n)
         let v = int(bits & ((uint32(1) << uint32(n)) - 1))
@@ -49,7 +49,7 @@ struct huffman {
     // fast[code reversed] = symbol << 4 | length, or -1 when longer.
     var fast: [int]
 
-    init(_ lengths: [int]) throws {
+    init(lengths: [int]) throws {
         counts = [int](repeating: 0, count: 16)
         for l in lengths { counts[l] += 1 }
         counts[0] = 0
@@ -89,7 +89,7 @@ struct huffman {
         }
     }
 
-    func decode(_ br: inout bitReader) throws -> int {
+    func decode(br: inout bitReader) throws -> int {
         // Top up without failing: the last symbols of a stream can be
         // shorter than fastBits.
         while br.count < fastBits && br.pos < br.data.count {
@@ -125,7 +125,7 @@ struct huffman {
 
 let fastBits = 9
 
-func reverseBits(_ v: int, _ n: int) -> int {
+func reverseBits(v: int, n: int) -> int {
     var r = 0
     var x = v
     var i = 0
@@ -165,7 +165,7 @@ func fixedLiteralLengths() -> [int] {
 
 /// inflateZlib decodes a zlib stream. sizeHint, when known, is the
 /// expected output size.
-func inflateZlib(_ data: [uint8], sizeHint: int) throws -> [uint8] {
+func inflateZlib(data: [uint8], sizeHint: int) throws -> [uint8] {
     if data.count < 6 { throw PngError.badData("zlib stream too short") }
     let cmf = int(data[0])
     let flg = int(data[1])
@@ -290,7 +290,7 @@ struct bitWriter {
 
     init() {}
 
-    mutating func put(_ v: int, _ n: int) {
+    mutating func put(v: int, n: int) {
         bits |= uint32(v) << uint32(count)
         count += n
         while count >= 8 {
@@ -330,7 +330,7 @@ func fixedCodes() -> ([int], [int]) {
 }
 
 /// deflateZlib compresses data into a zlib stream.
-func deflateZlib(_ data: [uint8]) -> [uint8] {
+func deflateZlib(data: [uint8]) -> [uint8] {
     var w = bitWriter()
     w.out.append(0x78)
     w.out.append(0x9C)
@@ -423,7 +423,7 @@ func deflateZlib(_ data: [uint8]) -> [uint8] {
     return w.out
 }
 
-func adler32(_ data: [uint8]) -> uint32 {
+func adler32(data: [uint8]) -> uint32 {
     var a: uint32 = 1
     var b: uint32 = 0
     var i = 0

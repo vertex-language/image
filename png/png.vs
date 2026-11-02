@@ -24,7 +24,7 @@ func signature() -> [uint8] { return [137, 80, 78, 71, 13, 10, 26, 10] }
 
 /// Encode writes an image as a PNG. Opaque images are stored as RGB,
 /// others as RGBA with the color un-premultiplied.
-public func Encode(_ img: image.RGBA) -> [uint8] {
+public func Encode(img: image.RGBA) -> [uint8] {
     let opaque = img.IsOpaque
     let bpp = opaque ? 3 : 4
     let w = img.Width
@@ -98,7 +98,7 @@ public func Encode(_ img: image.RGBA) -> [uint8] {
 
 // filterRow applies filter f to cur (the row above is prior) into out and
 // returns the sum of the output bytes read as signed magnitudes.
-func filterRow(_ f: int, _ cur: [uint8], _ prior: [uint8], _ bpp: int, _ out: inout [uint8]) -> int {
+func filterRow(f: int, cur: [uint8], prior: [uint8], bpp: int, out: inout [uint8]) -> int {
     let n = cur.count
     var score = 0
     var i = 0
@@ -123,7 +123,7 @@ func filterRow(_ f: int, _ cur: [uint8], _ prior: [uint8], _ bpp: int, _ out: in
     return score
 }
 
-func paeth(_ a: int, _ b: int, _ c: int) -> int {
+func paeth(a: int, b: int, c: int) -> int {
     let p = a + b - c
     var pa = p - a
     var pb = p - b
@@ -136,14 +136,14 @@ func paeth(_ a: int, _ b: int, _ c: int) -> int {
     return c
 }
 
-func appendU32(_ out: inout [uint8], _ v: uint32) {
+func appendU32(out: inout [uint8], v: uint32) {
     out.append(uint8(truncatingIfNeeded: v >> 24))
     out.append(uint8(truncatingIfNeeded: v >> 16))
     out.append(uint8(truncatingIfNeeded: v >> 8))
     out.append(uint8(truncatingIfNeeded: v))
 }
 
-func writeChunk(_ out: inout [uint8], _ type: string, _ data: [uint8]) {
+func writeChunk(out: inout [uint8], type: string, data: [uint8]) {
     appendU32(&out, uint32(data.count))
     var typeBytes: [uint8] = []
     for b in type.utf8 { typeBytes.append(b) }
@@ -165,7 +165,7 @@ public struct Config {
 }
 
 /// DecodeConfig reads only the header.
-public func DecodeConfig(_ data: [uint8]) throws -> Config {
+public func DecodeConfig(data: [uint8]) throws -> Config {
     let sig = signature()
     if data.count < 33 { throw PngError.truncated }
     var i = 0
@@ -178,7 +178,7 @@ public func DecodeConfig(_ data: [uint8]) throws -> Config {
 
 /// Decode reads a PNG into premultiplied RGBA. 16-bit samples keep their
 /// high byte; gamma and color profiles are not applied.
-public func Decode(_ data: [uint8]) throws -> image.RGBA {
+public func Decode(data: [uint8]) throws -> image.RGBA {
     let cfg = try DecodeConfig(data)
     let w = cfg.Width
     let h = cfg.Height
@@ -286,7 +286,7 @@ public func Decode(_ data: [uint8]) throws -> image.RGBA {
     return out
 }
 
-func channelsOf(_ ct: int) -> int {
+func channelsOf(ct: int) -> int {
     switch ct {
     case 0: return 1
     case 2: return 3
@@ -297,7 +297,7 @@ func channelsOf(_ ct: int) -> int {
     }
 }
 
-func depthAllowed(_ ct: int, _ d: int) -> bool {
+func depthAllowed(ct: int, d: int) -> bool {
     switch ct {
     case 0: return d == 1 || d == 2 || d == 4 || d == 8 || d == 16
     case 3: return d == 1 || d == 2 || d == 4 || d == 8
@@ -305,7 +305,7 @@ func depthAllowed(_ ct: int, _ d: int) -> bool {
     }
 }
 
-func passGeometry(_ p: int) -> (int, int, int, int) {
+func passGeometry(p: int) -> (int, int, int, int) {
     switch p {
     case 0: return (0, 0, 8, 8)
     case 1: return (4, 0, 8, 8)
@@ -317,7 +317,7 @@ func passGeometry(_ p: int) -> (int, int, int, int) {
     }
 }
 
-func passSize(_ p: int, _ w: int, _ h: int) -> (int, int) {
+func passSize(p: int, w: int, h: int) -> (int, int) {
     let (x0, y0, dx, dy) = passGeometry(p)
     let pw = w > x0 ? (w - x0 + dx - 1) / dx : 0
     let ph = h > y0 ? (h - y0 + dy - 1) / dy : 0
@@ -326,7 +326,7 @@ func passSize(_ p: int, _ w: int, _ h: int) -> (int, int) {
 
 // unfilter undoes the per-row filters of rows at raw[start...] and returns
 // the rows packed without their filter bytes.
-func unfilter(_ raw: [uint8], _ start: int, _ rowBytes: int, _ rows: int, _ bpp: int) throws -> [uint8] {
+func unfilter(raw: [uint8], start: int, rowBytes: int, rows: int, bpp: int) throws -> [uint8] {
     var out = [uint8](repeating: 0, count: rowBytes * rows)
     var y = 0
     while y < rows {
@@ -357,7 +357,7 @@ func unfilter(_ raw: [uint8], _ start: int, _ rowBytes: int, _ rows: int, _ bpp:
 }
 
 // sample reads the n-th sample of depth bits from a packed row.
-func sample(_ rows: [uint8], _ rowStart: int, _ n: int, _ depth: int) -> int {
+func sample(rows: [uint8], rowStart: int, n: int, depth: int) -> int {
     switch depth {
     case 8: return int(rows[rowStart + n])
     case 16: return int(rows[rowStart + n * 2])   // high byte
@@ -370,11 +370,11 @@ func sample(_ rows: [uint8], _ rowStart: int, _ n: int, _ depth: int) -> int {
 }
 
 // sample16 is a 16-bit sample, for comparing against tRNS keys.
-func sample16(_ rows: [uint8], _ rowStart: int, _ n: int) -> int {
+func sample16(rows: [uint8], rowStart: int, n: int) -> int {
     return (int(rows[rowStart + n * 2]) << 8) | int(rows[rowStart + n * 2 + 1])
 }
 
-func scaleTo8(_ v: int, _ depth: int) -> int {
+func scaleTo8(v: int, depth: int) -> int {
     switch depth {
     case 1: return v * 255
     case 2: return v * 85
@@ -383,8 +383,8 @@ func scaleTo8(_ v: int, _ depth: int) -> int {
     }
 }
 
-func putPixel(_ img: inout image.RGBA, _ index: int, _ rows: [uint8], _ rowStart: int, _ x: int,
-              _ ct: int, _ depth: int, _ palette: [uint8], _ trns: [uint8]) {
+func putPixel(img: inout image.RGBA, index: int, rows: [uint8], rowStart: int, x: int,
+              ct: int, depth: int, palette: [uint8], trns: [uint8]) {
     var r = 0
     var g = 0
     var b = 0
@@ -438,6 +438,6 @@ func putPixel(_ img: inout image.RGBA, _ index: int, _ rows: [uint8], _ rowStart
     img.Pixels[o + 3] = uint8(a)
 }
 
-func readU32(_ d: [uint8], _ at: int) -> uint32 {
+func readU32(d: [uint8], at: int) -> uint32 {
     return (uint32(d[at]) << 24) | (uint32(d[at + 1]) << 16) | (uint32(d[at + 2]) << 8) | uint32(d[at + 3])
 }

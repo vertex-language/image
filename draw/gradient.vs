@@ -12,7 +12,7 @@ public struct GradientStop {
     /// `calc(100% - 20px)`. Resolved once the line's length is known.
     public var Length: float32 = 0
 
-    public init(_ color: Color, at position: float32) {
+    public init(color: Color, at position: float32) {
         self.Color = color
         Position = position
     }
@@ -43,7 +43,7 @@ public struct LinearGradient {
 
     /// The gradient for a canvas k device pixels to a CSS pixel: its
     /// shapes' and its stops' lengths scaled.
-    public func Scaled(_ k: float32) -> LinearGradient {
+    public func Scaled(k: float32) -> LinearGradient {
         var g = self
         if let r = g.Radial { g.Radial = r.Scaled(k) }
         if let c = g.Conic { g.Conic = c.Scaled(k) }
@@ -59,7 +59,7 @@ public struct LinearGradient {
 
     /// The stops placed on a gradient line `length` pixels long: each
     /// stop's Length taken into its Position, then fixed up as CSS does.
-    public func ResolvedFor(_ length: float32) -> LinearGradient {
+    public func ResolvedFor(length: float32) -> LinearGradient {
         if !Unresolved { return self }
         var g = self
         g.Unresolved = false
@@ -80,7 +80,7 @@ public struct LinearGradient {
 /// CSS's fix-ups of stop positions: the first defaults to 0 and the last
 /// to 1, the ones between without a position spread evenly between their
 /// neighbours, and none before the one before it.
-public func FixStops(_ stops: inout [GradientStop]) {
+public func FixStops(stops: inout [GradientStop]) {
     if stops.isEmpty { return }
     if stops[0].Position < 0 { stops[0].Position = 0 }
     if stops[stops.count - 1].Position < 0 { stops[stops.count - 1].Position = 1 }
@@ -119,7 +119,7 @@ public struct ConicShape {
 
     public init() {}
 
-    public func Scaled(_ k: float32) -> ConicShape {
+    public func Scaled(k: float32) -> ConicShape {
         var c = self
         c.OffsetX *= k
         c.OffsetY *= k
@@ -128,7 +128,7 @@ public struct ConicShape {
 }
 
 /// t taken into the stops' span where the gradient repeats.
-func wrapped(_ g: LinearGradient, _ t: float32) -> float32 {
+func wrapped(g: LinearGradient, t: float32) -> float32 {
     if !g.Repeating || g.Stops.count < 2 { return t }
     let lo = g.Stops[0].Position
     let span = g.Stops[g.Stops.count - 1].Position - lo
@@ -162,7 +162,7 @@ public struct RadialShape {
     public init() {}
 
     /// The same shape at a scale: its pixel lengths multiplied.
-    public func Scaled(_ k: float32) -> RadialShape {
+    public func Scaled(k: float32) -> RadialShape {
         var r = self
         r.SizeX *= k
         r.SizeY *= k
@@ -172,7 +172,7 @@ public struct RadialShape {
     }
 
     /// The centre and the ending shape's two radii within a rectangle.
-    func resolve(_ x: float32, _ y: float32, _ w: float32, _ h: float32) -> (cx: float32, cy: float32, rx: float32, ry: float32) {
+    func resolve(x: float32, y: float32, w: float32, h: float32) -> (cx: float32, cy: float32, rx: float32, ry: float32) {
         let cx = x + w * CenterX + OffsetX
         let cy = y + h * CenterY + OffsetY
         let left = math.Abs(cx - x)
@@ -211,7 +211,7 @@ extension Canvas {
     /// The gradient line runs through the rectangle's centre at the
     /// angle, long enough that the first stop touches one corner and
     /// the last the opposite, as CSS lays it.
-    public func FillGradient(_ r: IRect, radii: Radii, _ gradient: LinearGradient) {
+    public func FillGradient(r: IRect, radii: Radii, gradient: LinearGradient) {
         if r.IsEmpty || gradient.Stops.isEmpty { return }
         if gradient.Stops.count == 1 {
             FillRounded(r, radii: radii, gradient.Stops[0].Color)
@@ -286,7 +286,7 @@ extension Canvas {
     /// A radial gradient: each pixel takes the color at its distance
     /// from the centre, as a fraction of the ending shape's radius, and
     /// past the shape the last stop's.
-    func fillRadial(_ r: IRect, clipped: IRect, radii: Radii, _ gradient: LinearGradient, _ radial: RadialShape) {
+    func fillRadial(r: IRect, clipped: IRect, radii: Radii, gradient: LinearGradient, radial: RadialShape) {
         let w = float32(r.Width)
         let h = float32(r.Height)
         let geo = radial.resolve(float32(r.X), float32(r.Y), w, h)
@@ -342,7 +342,7 @@ extension Canvas {
     /// A conic gradient: each pixel takes the color at its angle round
     /// the centre, clockwise from the gradient's starting angle, as a
     /// fraction of a turn.
-    func fillConic(_ r: IRect, clipped: IRect, radii: Radii, _ g: LinearGradient, _ conic: ConicShape) {
+    func fillConic(r: IRect, clipped: IRect, radii: Radii, g: LinearGradient, conic: ConicShape) {
         let w = float32(r.Width)
         let h = float32(r.Height)
         let cx = float32(r.X) + w * conic.CenterX + conic.OffsetX
@@ -394,7 +394,7 @@ extension Canvas {
 }
 
 /// The color a gradient has at a fraction of its length.
-func colorAt(_ stops: [GradientStop], _ t: float32) -> Color {
+func colorAt(stops: [GradientStop], t: float32) -> Color {
     if t <= stops[0].Position { return stops[0].Color }
     let last = stops[stops.count - 1]
     if t >= last.Position { return last.Color }
@@ -412,7 +412,7 @@ func colorAt(_ stops: [GradientStop], _ t: float32) -> Color {
     return last.Color
 }
 
-func mix(_ a: Color, _ b: Color, _ f: float32) -> Color {
+func mix(a: Color, b: Color, f: float32) -> Color {
     let g = 1 - f
     return Color(uint8(float32(a.R) * g + float32(b.R) * f + 0.5),
                  uint8(float32(a.G) * g + float32(b.G) * f + 0.5),

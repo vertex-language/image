@@ -29,7 +29,7 @@ public struct Path {
     /// Where the pen is.
     public var Current: Point { return current }
 
-    public mutating func MoveTo(_ x: float32, _ y: float32) {
+    public mutating func MoveTo(x: float32, y: float32) {
         Starts.append(Points.count)
         Closed.append(false)
         Points.append(Point(x, y))
@@ -37,14 +37,14 @@ public struct Path {
         start = current
     }
 
-    public mutating func LineTo(_ x: float32, _ y: float32) {
+    public mutating func LineTo(x: float32, y: float32) {
         if Starts.isEmpty { MoveTo(current.X, current.Y) }
         Points.append(Point(x, y))
         current = Point(x, y)
     }
 
     /// A quadratic Bézier curve to (x, y) with control point (cx, cy).
-    public mutating func QuadTo(_ cx: float32, _ cy: float32, _ x: float32, _ y: float32) {
+    public mutating func QuadTo(cx: float32, cy: float32, x: float32, y: float32) {
         let p0 = current
         let n = segments(p0, Point(x, y), [Point(cx, cy)])
         var i = 1
@@ -58,7 +58,7 @@ public struct Path {
 
     /// A cubic Bézier curve to (x, y) with control points (c1x, c1y) and
     /// (c2x, c2y).
-    public mutating func CubicTo(_ c1x: float32, _ c1y: float32, _ c2x: float32, _ c2y: float32, _ x: float32, _ y: float32) {
+    public mutating func CubicTo(c1x: float32, c1y: float32, c2x: float32, c2y: float32, x: float32, y: float32) {
         let p0 = current
         let n = segments(p0, Point(x, y), [Point(c1x, c1y), Point(c2x, c2y)])
         var i = 1
@@ -84,7 +84,7 @@ public struct Path {
 
     /// How many straight pieces a curve needs to stay within a quarter
     /// pixel: by the length of its control polygon.
-    func segments(_ a: Point, _ b: Point, _ controls: [Point]) -> int {
+    func segments(a: Point, b: Point, controls: [Point]) -> int {
         var len: float32 = 0
         var prev = a
         for c in controls {
@@ -113,7 +113,7 @@ public struct Path {
     }
 }
 
-func distance(_ a: Point, _ b: Point) -> float32 {
+func distance(a: Point, b: Point) -> float32 {
     let dx = a.X - b.X
     let dy = a.Y - b.Y
     return math.Sqrt(dx * dx + dy * dy)
@@ -126,7 +126,7 @@ let pathSamples: int = 4
 
 extension Canvas {
     /// Fills a path in a color, anti-aliased, kept to the clip.
-    public func FillPath(_ path: Path, rule: FillRule = .nonZero, _ color: Color) {
+    public func FillPath(path: Path, rule: FillRule = .nonZero, color: Color) {
         if path.Points.count < 3 || color.A == 0 { return }
         let bounds = path.Bounds
         let x0 = int32(math.Floor(bounds.X))

@@ -5,7 +5,7 @@ import "image/draw"
 
 var failures = 0
 
-func check(_ ok: bool, _ what: string) {
+func check(ok: bool, what: string) {
     if ok {
         print("ok    \(what)")
     } else {
@@ -14,7 +14,7 @@ func check(_ ok: bool, _ what: string) {
     }
 }
 
-func pixel(_ pixels: [uint8], _ w: int32, _ x: int32, _ y: int32) -> (r: uint8, g: uint8, b: uint8, a: uint8) {
+func pixel(pixels: [uint8], w: int32, x: int32, y: int32) -> (r: uint8, g: uint8, b: uint8, a: uint8) {
     let i = int((y * w + x) * 4)
     return (r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3])
 }
@@ -158,11 +158,11 @@ func main() -> int32 {
     print("Paths")
     let pw: int32 = 20
     var pp = [uint8](repeating: 0, count: int(pw * pw * 4))
-    func fill(_ path: draw.Path, _ rule: draw.FillRule) {
+    func fill(path: draw.Path, rule: draw.FillRule) {
         pp = [uint8](repeating: 0, count: int(pw * pw * 4))
         draw.WithCanvas(&pp, width: pw, height: pw) { c in c.FillPath(path, rule: rule, draw.Color(0, 0, 0)) }
     }
-    func alpha(_ x: int32, _ y: int32) -> uint8 { return pixel(pp, pw, x, y).a }
+    func alpha(x: int32, y: int32) -> uint8 { return pixel(pp, pw, x, y).a }
     var square = draw.Path()
     square.MoveTo(2, 2); square.LineTo(12, 2); square.LineTo(12, 12); square.LineTo(2, 12); square.Close()
     fill(square, .nonZero)

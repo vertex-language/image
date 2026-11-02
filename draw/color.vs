@@ -9,7 +9,7 @@ public struct Color: Equatable {
     public var B: uint8
     public var A: uint8
 
-    public init(_ r: uint8, _ g: uint8, _ b: uint8, _ a: uint8 = 255) {
+    public init(r: uint8, g: uint8, b: uint8, a: uint8 = 255) {
         R = r
         G = g
         B = b
@@ -24,7 +24,7 @@ public struct Color: Equatable {
     public var IsTransparent: bool { return A == 0 }
 
     /// The color with its alpha multiplied by a factor from 0 to 1.
-    public func Faded(_ opacity: float32) -> Color {
+    public func Faded(opacity: float32) -> Color {
         if opacity >= 1 { return self }
         if opacity <= 0 { return Color(R, G, B, 0) }
         return Color(R, G, B, uint8(float32(A) * opacity + 0.5))
@@ -45,7 +45,7 @@ public struct Color: Equatable {
 }
 
 /// x * y / 255, rounded, for x and y in 0...255.
-func mul255(_ x: uint32, _ y: uint32) -> uint32 {
+func mul255(x: uint32, y: uint32) -> uint32 {
     let t = x * y + 128
     return (t + (t >> 8)) >> 8
 }

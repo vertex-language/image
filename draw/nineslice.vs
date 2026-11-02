@@ -22,7 +22,7 @@ public enum SliceRepeat: Equatable {
 
 extension Image {
     /// The pixels of r, which is kept inside the image.
-    public func Cropped(_ r: IRect) -> Image {
+    public func Cropped(r: IRect) -> Image {
         let area = r.Intersect(IRect(0, 0, Width, Height))
         if area.IsEmpty { return Image(width: 0, height: 0, pixels: []) }
         var out = [uint8](repeating: 0, count: int(area.Width) * int(area.Height) * 4)
@@ -48,7 +48,7 @@ extension Canvas {
     /// sides, each edge piece along its side by the side's repeat, and
     /// the middle piece over the inside where fill is set, all of it at
     /// opacity. Widths too wide for the area are scaled down together.
-    public func DrawNineSlice(_ img: Image, into area: Rect, slice: Edges, widths: Edges, fill: bool,
+    public func DrawNineSlice(img: Image, into area: Rect, slice: Edges, widths: Edges, fill: bool,
                               horizontal: SliceRepeat, vertical: SliceRepeat, opacity: float32 = 1) {
         if img.Width <= 0 || img.Height <= 0 || area.Width <= 0 || area.Height <= 0 { return }
         let iw = float32(img.Width)
@@ -95,7 +95,7 @@ extension Canvas {
         }
     }
 
-    func tilePiece(_ piece: Image, _ dst: Rect, _ tw: float32, _ th: float32, _ mh: SliceRepeat, _ mv: SliceRepeat, _ opacity: float32) {
+    func tilePiece(piece: Image, dst: Rect, tw: float32, th: float32, mh: SliceRepeat, mv: SliceRepeat, opacity: float32) {
         if tw <= 0 || th <= 0 { return }
         let xs = slicePlaces(dst.X, dst.Width, tw, mh)
         let ys = slicePlaces(dst.Y, dst.Height, th, mv)
@@ -116,7 +116,7 @@ extension Canvas {
 
 /// Where the copies of a piece go along a side from start: their
 /// starts and their size.
-func slicePlaces(_ start: float32, _ length: float32, _ tile: float32, _ mode: SliceRepeat) -> (starts: [float32], size: float32) {
+func slicePlaces(start: float32, length: float32, tile: float32, mode: SliceRepeat) -> (starts: [float32], size: float32) {
     switch mode {
     case .stretch:
         return (starts: [start], size: length)

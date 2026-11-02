@@ -40,7 +40,7 @@ extension Path {
     /// The area a stroke of the path covers, as a path to fill with the
     /// nonzero rule: a quadrilateral per segment, and the joins and caps,
     /// all wound the same way so their overlaps fill once.
-    public func Stroked(_ s: Stroke) -> Path {
+    public func Stroked(s: Stroke) -> Path {
         var out = Path()
         let hw = s.Width / 2
         if hw <= 0 { return out }
@@ -99,7 +99,7 @@ extension Path {
 
     /// A closed polygon, wound counterclockwise (in y-down pixels) so all
     /// of a stroke's pieces add up.
-    mutating func addPolygon(_ p: [Point]) {
+    mutating func addPolygon(p: [Point]) {
         if p.count < 3 { return }
         var area: float32 = 0
         var i = 0
@@ -127,7 +127,7 @@ extension Path {
         Close()
     }
 
-    mutating func addCircle(_ c: Point, _ r: float32) {
+    mutating func addCircle(c: Point, r: float32) {
         let steps = max(8, min(48, int(r * 3)))
         var p: [Point] = []
         var i = 0
@@ -139,7 +139,7 @@ extension Path {
         addPolygon(p)
     }
 
-    mutating func addJoin(_ prev: Point, _ at: Point, _ next: Point, _ s: Stroke, _ hw: float32) {
+    mutating func addJoin(prev: Point, at: Point, next: Point, s: Stroke, hw: float32) {
         if s.Join == .round {
             addCircle(at, hw)
             return
@@ -178,7 +178,7 @@ extension Path {
     }
 
     /// A cap at end, the line arriving from from.
-    mutating func addCap(_ from: Point, _ end: Point, _ cap: LineCap, _ hw: float32) {
+    mutating func addCap(from: Point, end: Point, cap: LineCap, hw: float32) {
         switch cap {
         case .butt:
             return
@@ -199,7 +199,7 @@ extension Path {
 }
 
 /// A segment's normal, hw long.
-func normal(_ a: Point, _ b: Point, _ hw: float32) -> Point {
+func normal(a: Point, b: Point, hw: float32) -> Point {
     let dx = b.X - a.X
     let dy = b.Y - a.Y
     let l = math.Sqrt(dx * dx + dy * dy)
@@ -209,7 +209,7 @@ func normal(_ a: Point, _ b: Point, _ hw: float32) -> Point {
 
 extension Canvas {
     /// Strokes a path in a color, anti-aliased, kept to the clip.
-    public func StrokePath(_ path: Path, _ stroke: Stroke, _ color: Color) {
+    public func StrokePath(path: Path, stroke: Stroke, color: Color) {
         FillPath(path.Stroked(stroke), rule: .nonZero, color)
     }
 }

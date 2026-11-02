@@ -12,14 +12,14 @@ import (
 
 var failures = 0
 
-func check(_ ok: bool, _ what: string) {
+func check(ok: bool, what: string) {
     if !ok {
         failures += 1
         print("FAIL: \(what)")
     }
 }
 
-func same(_ a: [uint8], _ b: [uint8]) -> int {
+func same(a: [uint8], b: [uint8]) -> int {
     if a.count != b.count { return 0 }
     var i = 0
     while i < a.count {
@@ -45,7 +45,7 @@ func fixtureNames() -> [string] {
     return out
 }
 
-func roundTrip(_ img: image.RGBA, _ what: string) {
+func roundTrip(img: image.RGBA, what: string) {
     let bytes = png.Encode(img)
     do {
         let back = try png.Decode(bytes)

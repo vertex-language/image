@@ -29,7 +29,7 @@ public struct Image {
     }
 
     /// At is the texel at (x, y), clamped to the image.
-    public func At(_ x: int, _ y: int) -> (float32, float32, float32) {
+    public func At(x: int, y: int) -> (float32, float32, float32) {
         let cx = max(0, min(Width - 1, x)), cy = max(0, min(Height - 1, y))
         let i = (cy * Width + cx) * 3
         return (Pixels[i], Pixels[i + 1], Pixels[i + 2])
@@ -37,7 +37,7 @@ public struct Image {
 }
 
 /// Decode reads an RGBE image.
-public func Decode(_ b: [uint8]) throws -> Image {
+public func Decode(b: [uint8]) throws -> Image {
     if b.count < 11 { throw HdrError.notHDR }
     // "#?" then a program name ("RADIANCE", "RGBE"), then header lines up
     // to a blank one, then the resolution line.
@@ -92,7 +92,7 @@ func exponents() -> [float32] {
 }
 
 // scanline reads one row of w texels as RGBE quads into row.
-func scanline(_ b: [uint8], _ at: inout int, _ row: inout [uint8], _ w: int) throws {
+func scanline(b: [uint8], at: inout int, row: inout [uint8], w: int) throws {
     if at + 4 > b.count { throw HdrError.truncated }
     // The run-length form starts 2, 2, then the width in two bytes; widths
     // outside 8…32767 are always flat.
@@ -153,7 +153,7 @@ func scanline(_ b: [uint8], _ at: inout int, _ row: inout [uint8], _ w: int) thr
 }
 
 // readLine reads up to a newline (not included); nil at the end.
-func readLine(_ b: [uint8], _ at: inout int) -> string? {
+func readLine(b: [uint8], at: inout int) -> string? {
     if at >= b.count { return nil }
     let start = at
     while at < b.count && b[at] != 10 { at += 1 }

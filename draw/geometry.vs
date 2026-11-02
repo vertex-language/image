@@ -9,7 +9,7 @@ public struct Rect: Equatable {
     public var Width: float32
     public var Height: float32
 
-    public init(_ x: float32, _ y: float32, _ width: float32, _ height: float32) {
+    public init(x: float32, y: float32, width: float32, height: float32) {
         X = x
         Y = y
         Width = width
@@ -22,16 +22,16 @@ public struct Rect: Equatable {
     public var Bottom: float32 { return Y + Height }
     public var IsEmpty: bool { return Width <= 0 || Height <= 0 }
 
-    public func Contains(_ px: float32, _ py: float32) -> bool {
+    public func Contains(px: float32, py: float32) -> bool {
         return px >= X && py >= Y && px < X + Width && py < Y + Height
     }
 
-    public func Offset(_ dx: float32, _ dy: float32) -> Rect {
+    public func Offset(dx: float32, dy: float32) -> Rect {
         return Rect(X + dx, Y + dy, Width, Height)
     }
 
     /// The rectangle both cover; empty where they do not meet.
-    public func Intersect(_ o: Rect) -> Rect {
+    public func Intersect(o: Rect) -> Rect {
         let x0 = X > o.X ? X : o.X
         let y0 = Y > o.Y ? Y : o.Y
         let x1 = Right < o.Right ? Right : o.Right
@@ -41,7 +41,7 @@ public struct Rect: Equatable {
     }
 
     /// The smallest rectangle covering both.
-    public func Union(_ o: Rect) -> Rect {
+    public func Union(o: Rect) -> Rect {
         if IsEmpty { return o }
         if o.IsEmpty { return self }
         let x0 = X < o.X ? X : o.X
@@ -70,7 +70,7 @@ public struct IRect: Equatable {
     public var Width: int32
     public var Height: int32
 
-    public init(_ x: int32, _ y: int32, _ width: int32, _ height: int32) {
+    public init(x: int32, y: int32, width: int32, height: int32) {
         X = x
         Y = y
         Width = width
@@ -83,11 +83,11 @@ public struct IRect: Equatable {
     public var Bottom: int32 { return Y + Height }
     public var IsEmpty: bool { return Width <= 0 || Height <= 0 }
 
-    public func Contains(_ px: int32, _ py: int32) -> bool {
+    public func Contains(px: int32, py: int32) -> bool {
         return px >= X && py >= Y && px < X + Width && py < Y + Height
     }
 
-    public func Intersect(_ o: IRect) -> IRect {
+    public func Intersect(o: IRect) -> IRect {
         let x0 = X > o.X ? X : o.X
         let y0 = Y > o.Y ? Y : o.Y
         let x1 = Right < o.Right ? Right : o.Right
@@ -96,7 +96,7 @@ public struct IRect: Equatable {
         return IRect(x0, y0, x1 - x0, y1 - y0)
     }
 
-    public func Union(_ o: IRect) -> IRect {
+    public func Union(o: IRect) -> IRect {
         if IsEmpty { return o }
         if o.IsEmpty { return self }
         let x0 = X < o.X ? X : o.X
@@ -114,7 +114,7 @@ public struct Edges: Equatable {
     public var Bottom: float32
     public var Left: float32
 
-    public init(_ top: float32, _ right: float32, _ bottom: float32, _ left: float32) {
+    public init(top: float32, right: float32, bottom: float32, left: float32) {
         Top = top
         Right = right
         Bottom = bottom
@@ -141,7 +141,7 @@ public struct Radii: Equatable {
     public var BottomRight: float32
     public var BottomLeft: float32
 
-    public init(_ tl: float32, _ tr: float32, _ br: float32, _ bl: float32) {
+    public init(tl: float32, tr: float32, br: float32, bl: float32) {
         TopLeft = tl
         TopRight = tr
         BottomRight = br
@@ -161,13 +161,13 @@ public struct Radii: Equatable {
         return TopLeft <= 0 && TopRight <= 0 && BottomRight <= 0 && BottomLeft <= 0
     }
 
-    public func Scaled(_ s: float32) -> Radii {
+    public func Scaled(s: float32) -> Radii {
         return Radii(TopLeft * s, TopRight * s, BottomRight * s, BottomLeft * s)
     }
 
     /// Each radius shrunk by the border on its two sides, which is the
     /// curve of the padding edge inside a rounded border.
-    public func Inset(_ e: Edges) -> Radii {
+    public func Inset(e: Edges) -> Radii {
         return Radii(
             math.Max(TopLeft - math.Max(e.Top, e.Left), 0),
             math.Max(TopRight - math.Max(e.Top, e.Right), 0),
@@ -177,7 +177,7 @@ public struct Radii: Equatable {
 
     /// Radii that fit the rectangle: where the sum of two along a side
     /// exceeds it, all are scaled down together, as CSS does.
-    public func Fitted(_ w: float32, _ h: float32) -> Radii {
+    public func Fitted(w: float32, h: float32) -> Radii {
         var f: float32 = 1
         let top = TopLeft + TopRight
         let bottom = BottomLeft + BottomRight
@@ -193,7 +193,7 @@ public struct Radii: Equatable {
 }
 
 /// The nearest whole number, halves rounding to even.
-public func RoundToInt(_ v: float32) -> int32 {
+public func RoundToInt(v: float32) -> int32 {
     return math.RoundToInt(v)
 }
 
@@ -202,7 +202,7 @@ public struct Point: Equatable {
     public var X: float32
     public var Y: float32
 
-    public init(_ x: float32, _ y: float32) {
+    public init(x: float32, y: float32) {
         X = x
         Y = y
     }
@@ -215,7 +215,7 @@ public struct Size: Equatable {
     public var Width: float32
     public var Height: float32
 
-    public init(_ width: float32, _ height: float32) {
+    public init(width: float32, height: float32) {
         Width = width
         Height = height
     }

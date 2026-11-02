@@ -12,7 +12,7 @@ public struct Layer {
     public var Canvas: Canvas
 
     /// A transparent layer over r, which must not be empty.
-    public init(_ r: IRect) {
+    public init(r: IRect) {
         Rect = r
         let count = int(r.Width) * int(r.Height)
         pixels = UnsafeMutablePointer<uint32>.allocate(capacity: count)
@@ -38,7 +38,7 @@ public struct Layer {
 
     /// Blurs the layer as a Gaussian of standard deviation sigma pixels
     /// would, near enough: three box blurs each way.
-    public func Blur(_ sigma: float32) {
+    public func Blur(sigma: float32) {
         if sigma < 0.5 { return }
         let w = int(Rect.Width)
         let h = int(Rect.Height)
@@ -94,7 +94,7 @@ public struct Layer {
 /// One box blur along a row or column of premultiplied pixels: each
 /// becomes the mean of those within radius, the edges treated as
 /// transparent.
-func blurLine(_ p: UnsafeMutablePointer<uint32>, step: int, count: int, radius: int, scratch: UnsafeMutablePointer<uint32>) {
+func blurLine(p: UnsafeMutablePointer<uint32>, step: int, count: int, radius: int, scratch: UnsafeMutablePointer<uint32>) {
     var i = 0
     while i < count {
         (scratch + i).pointee = (p + i * step).pointee

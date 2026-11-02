@@ -20,7 +20,7 @@ public enum Kind {
 }
 
 /// Sniff names the format of an image's bytes.
-public func Sniff(_ b: [uint8]) -> Kind {
+public func Sniff(b: [uint8]) -> Kind {
     if b.count >= 8 && b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47 { return .png }
     if b.count >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF { return .jpeg }
     if b.count >= 6 && b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x38 { return .gif }
@@ -32,7 +32,7 @@ public func Sniff(_ b: [uint8]) -> Kind {
 
 /// Decode decodes an image's bytes into premultiplied RGBA. Nil where the
 /// bytes are not an image anything here reads.
-public func Decode(_ bytes: [uint8]) -> image.RGBA? {
+public func Decode(bytes: [uint8]) -> image.RGBA? {
     if bytes.isEmpty { return nil }
     if Sniff(bytes) == .png {
         do {
@@ -44,7 +44,7 @@ public func Decode(_ bytes: [uint8]) -> image.RGBA? {
     return decodePlatform(bytes)
 }
 
-func decodePlatform(_ bytes: [uint8]) -> image.RGBA? {
+func decodePlatform(bytes: [uint8]) -> image.RGBA? {
     var width: int32 = 0
     var height: int32 = 0
     let need = bytes.withUnsafeBytes { bp in
@@ -62,14 +62,14 @@ func decodePlatform(_ bytes: [uint8]) -> image.RGBA? {
 }
 
 /// DecodeDataURL decodes a `data:` URL's image, base64 or plain.
-public func DecodeDataURL(_ url: string) -> image.RGBA? {
+public func DecodeDataURL(url: string) -> image.RGBA? {
     guard let payload = DataURLBytes(url) else { return nil }
     return Decode(payload)
 }
 
 /// DataURLBytes is what a `data:` URL holds: its payload base64-decoded,
 /// or percent-decoded where it is plain (`data:image/svg+xml,%3Csvg…`).
-public func DataURLBytes(_ url: string) -> [uint8]? {
+public func DataURLBytes(url: string) -> [uint8]? {
     let b = [uint8](url.utf8)
     if b.count < 6 { return nil }
     var comma = 0
@@ -102,7 +102,7 @@ public func DataURLBytes(_ url: string) -> [uint8]? {
     return out
 }
 
-func hexDigit(_ c: uint8) -> uint8? {
+func hexDigit(c: uint8) -> uint8? {
     if c >= 48 && c <= 57 { return c - 48 }
     if c >= 65 && c <= 70 { return c - 55 }
     if c >= 97 && c <= 102 { return c - 87 }
@@ -111,7 +111,7 @@ func hexDigit(_ c: uint8) -> uint8? {
 
 // base64Decode takes standard or URL-safe base64 and skips anything else
 // (whitespace, padding), as data: URLs in the wild need.
-func base64Decode(_ input: [uint8]) -> [uint8] {
+func base64Decode(input: [uint8]) -> [uint8] {
     var out: [uint8] = []
     var bits: uint32 = 0
     var count = 0

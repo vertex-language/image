@@ -51,18 +51,18 @@ public struct Canvas {
     public var Bounds: IRect { return IRect(0, 0, Width, Height) }
 
     /// Narrows the clip to its intersection with r.
-    public mutating func ClipTo(_ r: IRect) {
+    public mutating func ClipTo(r: IRect) {
         Clip = Clip.Intersect(r)
     }
 
     // MARK: - Pixels
 
-    func rowPointer(_ y: int32) -> UnsafeMutablePointer<uint32> {
+    func rowPointer(y: int32) -> UnsafeMutablePointer<uint32> {
         return UnsafeMutablePointer<uint32>(UnsafeMutableRawPointer(base + int(y * Stride)))
     }
 
     /// The pixel at (x, y), or 0 outside the canvas.
-    public func Pixel(_ x: int32, _ y: int32) -> uint32 {
+    public func Pixel(x: int32, y: int32) -> uint32 {
         if x < 0 || y < 0 || x >= Width || y >= Height { return 0 }
         return (rowPointer(y) + int(x)).pointee
     }
@@ -70,17 +70,17 @@ public struct Canvas {
     // MARK: - Filling
 
     /// Paints every pixel the color, clip and all.
-    public func Clear(_ color: Color) {
+    public func Clear(color: Color) {
         fillSpanRect(IRect(0, 0, Width, Height), color)
     }
 
     /// Fills a rectangle, blending where the color is translucent.
-    public func Fill(_ r: IRect, _ color: Color) {
+    public func Fill(r: IRect, color: Color) {
         if color.A == 0 { return }
         fillSpanRect(r.Intersect(Clip), color)
     }
 
-    func fillSpanRect(_ r: IRect, _ color: Color) {
+    func fillSpanRect(r: IRect, color: Color) {
         if r.IsEmpty { return }
         let pixel = color.Premultiplied()
         var y = r.Y
@@ -108,7 +108,7 @@ public struct Canvas {
 
     /// Fills a rectangle whose corners are rounded, with the curves
     /// anti-aliased. Radii are in device pixels.
-    public func FillRounded(_ r: IRect, radii: Radii, _ color: Color) {
+    public func FillRounded(r: IRect, radii: Radii, color: Color) {
         if color.A == 0 || r.IsEmpty { return }
         let fitted = radii.Fitted(float32(r.Width), float32(r.Height))
         if fitted.IsZero {
@@ -162,7 +162,7 @@ public struct Canvas {
     /// a border. Colors one side at a time: the part of the ring nearest
     /// each edge takes that edge's color, meeting the next on the
     /// diagonal, as CSS joins borders of different colors.
-    public func FillRing(_ outer: IRect, radii: Radii, widths: Edges, colors: [Color]) {
+    public func FillRing(outer: IRect, radii: Radii, widths: Edges, colors: [Color]) {
         if outer.IsEmpty { return }
         let w = widths
         let inner = IRect(outer.X + int32(w.Left), outer.Y + int32(w.Top),
@@ -228,7 +228,7 @@ public struct Canvas {
     // MARK: - Masks and images
 
     /// Blends a color through a mask, whose top-left corner lands at (x, y).
-    public func DrawMask(_ m: Mask, x: int32, y: int32, _ color: Color) {
+    public func DrawMask(m: Mask, x: int32, y: int32, color: Color) {
         if color.A == 0 || m.Width <= 0 || m.Height <= 0 { return }
         let target = IRect(x, y, m.Width, m.Height).Intersect(Clip)
         if target.IsEmpty { return }
@@ -265,7 +265,7 @@ public struct Canvas {
     /// differ: box-filtered when shrinking, bilinear when growing. With
     /// a shape, only the part of the image inside that rounded
     /// rectangle shows, its curves anti-aliased.
-    public func DrawImage(_ img: Image, into dst: IRect, opacity: float32 = 1, shape: IRect? = nil, radii: Radii? = nil) {
+    public func DrawImage(img: Image, into dst: IRect, opacity: float32 = 1, shape: IRect? = nil, radii: Radii? = nil) {
         if img.Width <= 0 || img.Height <= 0 || dst.IsEmpty { return }
         var target = dst.Intersect(Clip)
         var shapeRect = dst
@@ -316,7 +316,7 @@ public struct Canvas {
 
 /// Runs body with a canvas over pixels, which must hold width * height
 /// premultiplied RGBA pixels.
-public func WithCanvas(_ pixels: inout [uint8], width: int32, height: int32, _ body: (Canvas) -> Void) {
+public func WithCanvas(pixels: inout [uint8], width: int32, height: int32, body: (Canvas) -> Void) {
     if width <= 0 || height <= 0 || pixels.count < int(width) * int(height) * 4 { return }
     pixels.withUnsafeMutableBytes { bp in
         let canvas = Canvas(base: UnsafeMutablePointer<uint8>(bp.baseAddress!), width: width, height: height, stride: width * 4)
@@ -325,10 +325,10 @@ public func WithCanvas(_ pixels: inout [uint8], width: int32, height: int32, _ b
 }
 
 @_silgen_name("memset_pattern4")
-func c_memset_pattern4(_ dst: UnsafeMutableRawPointer, _ pattern: UnsafePointer<uint32>, _ len: int) -> UnsafeMutableRawPointer
+func c_memset_pattern4(dst: UnsafeMutableRawPointer, pattern: UnsafePointer<uint32>, len: int) -> UnsafeMutableRawPointer
 
 /// Every channel of a packed pixel multiplied by f / 255, two at a time.
-func scalePacked(_ p: uint32, _ f: uint32) -> uint32 {
+func scalePacked(p: uint32, f: uint32) -> uint32 {
     var rb = (p & 0x00FF00FF) &* f
     rb = ((rb &+ ((rb >> 8) & 0x00FF00FF) &+ 0x00800080) >> 8) & 0x00FF00FF
     var ga = ((p >> 8) & 0x00FF00FF) &* f
@@ -339,7 +339,7 @@ func scalePacked(_ p: uint32, _ f: uint32) -> uint32 {
 /// The side of a box a point in its border belongs to -- 0 top, 1 right,
 /// 2 bottom, 3 left -- by which edge the point is nearest, measured in
 /// widths of each border.
-func sideOf(_ dx: float32, _ dy: float32, _ w: float32, _ h: float32, _ e: Edges) -> int {
+func sideOf(dx: float32, dy: float32, w: float32, h: float32, e: Edges) -> int {
     let hw = w / 2
     let hh = h / 2
     let toRight = e.Right > 0 ? (hw - dx) / e.Right : 1e9
@@ -362,7 +362,7 @@ struct RoundedRect {
     let rect: IRect
     let radii: Radii
 
-    func coverage(_ x: int32, _ y: int32) -> int32 {
+    func coverage(x: int32, y: int32) -> int32 {
         if x < rect.X || y < rect.Y || x >= rect.Right || y >= rect.Bottom { return 0 }
         let px = float32(x) + 0.5
         let py = float32(y) + 0.5
@@ -395,7 +395,7 @@ struct RoundedRect {
 
     /// The first x on row y past which the row is no longer solid: the
     /// start of the right-hand curve, or the right edge.
-    func solidEnd(_ y: int32) -> int32 {
+    func solidEnd(y: int32) -> int32 {
         let py = float32(y) + 0.5
         let top = float32(rect.Y)
         let bottom = float32(rect.Bottom)
@@ -409,8 +409,8 @@ struct RoundedRect {
 /// One pixel of an image resampled into a destination of another size:
 /// a box average of the source pixels the destination pixel covers when
 /// shrinking, and the bilinear blend of the four nearest when growing.
-func sample(_ src: UnsafePointer<uint32>, _ sw: int32, _ sh: int32,
-            _ dx: int32, _ dy: int32, _ dw: int32, _ dh: int32) -> uint32 {
+func sample(src: UnsafePointer<uint32>, sw: int32, sh: int32,
+            dx: int32, dy: int32, dw: int32, dh: int32) -> uint32 {
     let fx = float32(sw) / float32(dw)
     let fy = float32(sh) / float32(dh)
     if fx > 1 || fy > 1 {

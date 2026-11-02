@@ -13,7 +13,7 @@ import (
 
 var failures = 0
 
-func check(_ ok: bool, _ what: string) {
+func check(ok: bool, what: string) {
     if !ok {
         failures += 1
         print("FAIL: \(what)")
@@ -22,11 +22,11 @@ func check(_ ok: bool, _ what: string) {
     }
 }
 
-func header(_ w: int, _ h: int) -> [uint8] {
+func header(w: int, h: int) -> [uint8] {
     return [uint8]("#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y \(h) +X \(w)\n".utf8)
 }
 
-func near(_ a: float32, _ b: float32) -> bool { return a > b * 0.99 && a < b * 1.01 }
+func near(a: float32, b: float32) -> bool { return a > b * 0.99 && a < b * 1.01 }
 
 func main() -> int32 {
     // Flat: two texels, (128, 64, 32, e=129) is (1.0, 0.5, 0.25) give or
