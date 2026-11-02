@@ -82,6 +82,15 @@ extension Layer {
         }
     }
 
+    /// The color at a place in the layer, not premultiplied; clear outside it.
+    public func ColorAt(x: int32, y: int32) -> Color {
+        let v = at(x, y)
+        let a = v >> 24
+        if a == 0 { return Color.transparent }
+        func un(c: uint32) -> uint8 { return uint8(c * 255 / a > 255 ? 255 : c * 255 / a) }
+        return Color(un(v & 0xFF), un((v >> 8) & 0xFF), un((v >> 16) & 0xFF), uint8(a))
+    }
+
     /// Runs filters over the layer, in order.
     public func Apply(filters: [Filter]) {
         for f in filters {
